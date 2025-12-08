@@ -6,6 +6,8 @@ import runsRoutes from './routes/runs.js';
 import resultsRoutes from './routes/results.js';
 import agentsRoutes from './routes/agents.js';
 import simulatorRoutes from './routes/simulator.js';
+import settingsRoutes from './routes/settings.js';
+import conversationHistoryRoutes from './routes/conversationHistory.js';
 import { db, initDatabase } from './database.js'; // Ensure DB is init
 import simulationRoutes from './routes/simulation.js';
 
@@ -31,6 +33,8 @@ app.use('/api/v1/results', resultsRoutes);
 app.use('/api/v1/agents', agentsRoutes);
 app.use('/api/v1/simulator', simulatorRoutes);
 app.use('/api/v1/simulation', simulationRoutes);
+app.use('/api/v1/settings', settingsRoutes);
+app.use('/api/v1/conversations', conversationHistoryRoutes);
 
 
 // Analytics routes

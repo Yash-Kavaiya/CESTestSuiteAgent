@@ -1,26 +1,48 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
-    Settings as SettingsIcon,
     Key,
     Database,
     Sliders,
     Save,
-    Upload,
     Trash2,
     Plus,
     Check,
+    Wifi,
+    Loader2,
+    CheckCircle,
+    AlertCircle,
 } from 'lucide-react';
 import Card, { CardHeader, CardContent } from '../components/ui/Card';
 import Button from '../components/ui/Button';
 import { useAgentStore } from '../store/useAgentStore';
+import { testAgentConnection } from '../api/agents';
 import { Agent } from '../types';
 import clsx from 'clsx';
+import axios from 'axios';
+
+type AgentConnectionStatus = 'idle' | 'testing' | 'connected' | 'failed';
+
+interface CredentialsInfo {
+    projectId: string;
+    clientEmail: string;
+}
 
 export default function Settings() {
-    const { agents, setAgents, selectedAgent, setSelectedAgent } = useAgentStore();
+    const { agents, addAgent, removeAgent, selectedAgent, setSelectedAgent, initializeFromLocalStorage } = useAgentStore();
     const [activeTab, setActiveTab] = useState<'agents' | 'comparison' | 'export'>(
         'agents'
     );
+
+    // Connection status per agent
+    const [agentConnectionStatus, setAgentConnectionStatus] = useState<Record<string, AgentConnectionStatus>>({});
+    const [agentConnectionError, setAgentConnectionError] = useState<Record<string, string>>({});
+
+    // Credentials state
+    const [credentialsInfo, setCredentialsInfo] = useState<CredentialsInfo | null>(null);
+    const [credentialsLoading, setCredentialsLoading] = useState(false);
+    const [credentialsError, setCredentialsError] = useState<string | null>(null);
+    const [isDragging, setIsDragging] = useState(false);
+    const fileInputRef = useRef<HTMLInputElement>(null);
 
     // Form states
     const [projectId, setProjectId] = useState('');
@@ -33,6 +55,98 @@ export default function Settings() {
     const [ignoreCase, setIgnoreCase] = useState(true);
     const [ignorePunctuation, setIgnorePunctuation] = useState(true);
 
+    // Initialize store on mount
+    useEffect(() => {
+        initializeFromLocalStorage();
+    }, [initializeFromLocalStorage]);
+
+    // Load credentials status on mount
+    useEffect(() => {
+        loadCredentialsStatus();
+    }, []);
+
+    const loadCredentialsStatus = async () => {
+        try {
+            const response = await axios.get('/api/v1/settings/credentials');
+            if (response.data.success && response.data.data.configured) {
+                setCredentialsInfo({
+                    projectId: response.data.data.projectId,
+                    clientEmail: response.data.data.clientEmail,
+                });
+            }
+        } catch (error) {
+            console.error('Failed to load credentials status:', error);
+        }
+    };
+
+    const uploadCredentials = async (file: File) => {
+        setCredentialsLoading(true);
+        setCredentialsError(null);
+
+        try {
+            const formData = new FormData();
+            formData.append('credentials', file);
+
+            const response = await axios.post('/api/v1/settings/credentials', formData, {
+                headers: { 'Content-Type': 'multipart/form-data' },
+            });
+
+            if (response.data.success) {
+                setCredentialsInfo({
+                    projectId: response.data.data.projectId,
+                    clientEmail: response.data.data.clientEmail,
+                });
+            } else {
+                setCredentialsError(response.data.error || 'Upload failed');
+            }
+        } catch (error: any) {
+            setCredentialsError(error.response?.data?.error || error.message || 'Upload failed');
+        } finally {
+            setCredentialsLoading(false);
+        }
+    };
+
+    const handleRemoveCredentials = async () => {
+        setCredentialsLoading(true);
+        try {
+            await axios.delete('/api/v1/settings/credentials');
+            setCredentialsInfo(null);
+        } catch (error: any) {
+            setCredentialsError(error.response?.data?.error || 'Failed to remove credentials');
+        } finally {
+            setCredentialsLoading(false);
+        }
+    };
+
+    const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (file) {
+            uploadCredentials(file);
+        }
+    };
+
+    const handleDragOver = (e: React.DragEvent) => {
+        e.preventDefault();
+        setIsDragging(true);
+    };
+
+    const handleDragLeave = (e: React.DragEvent) => {
+        e.preventDefault();
+        setIsDragging(false);
+    };
+
+    const handleDrop = (e: React.DragEvent) => {
+        e.preventDefault();
+        setIsDragging(false);
+        const file = e.dataTransfer.files?.[0];
+        if (file && (file.type === 'application/json' || file.name.endsWith('.json'))) {
+            uploadCredentials(file);
+        } else {
+            setCredentialsError('Please upload a JSON file');
+        }
+    };
+
+
     const handleAddAgent = () => {
         if (!projectId || !agentId || !displayName) return;
 
@@ -44,16 +158,42 @@ export default function Settings() {
             defaultLanguageCode: 'en',
         };
 
-        setAgents([...agents, newAgent]);
+        addAgent(newAgent);
         setProjectId('');
         setAgentId('');
         setDisplayName('');
     };
 
     const handleRemoveAgent = (id: string) => {
-        setAgents(agents.filter((a) => a.id !== id));
-        if (selectedAgent?.id === id) {
-            setSelectedAgent(null);
+        removeAgent(id);
+        // Clean up connection status
+        setAgentConnectionStatus(prev => {
+            const next = { ...prev };
+            delete next[id];
+            return next;
+        });
+        setAgentConnectionError(prev => {
+            const next = { ...prev };
+            delete next[id];
+            return next;
+        });
+    };
+
+    const handleTestConnection = async (agent: Agent) => {
+        setAgentConnectionStatus(prev => ({ ...prev, [agent.id]: 'testing' }));
+        setAgentConnectionError(prev => {
+            const next = { ...prev };
+            delete next[agent.id];
+            return next;
+        });
+
+        const result = await testAgentConnection(agent);
+
+        if (result.success && result.connected) {
+            setAgentConnectionStatus(prev => ({ ...prev, [agent.id]: 'connected' }));
+        } else {
+            setAgentConnectionStatus(prev => ({ ...prev, [agent.id]: 'failed' }));
+            setAgentConnectionError(prev => ({ ...prev, [agent.id]: result.error || 'Connection failed' }));
         }
     };
 
@@ -187,60 +327,104 @@ export default function Settings() {
                                 </div>
                             ) : (
                                 <div className="space-y-3">
-                                    {agents.map((agent) => (
-                                        <div
-                                            key={agent.id}
-                                            className={clsx(
-                                                'flex items-center gap-4 p-4 rounded-lg border transition-colors',
-                                                selectedAgent?.id === agent.id
-                                                    ? 'bg-primary-500/10 border-primary-500/30'
-                                                    : 'bg-dark-700/50 border-dark-600 hover:border-dark-500'
-                                            )}
-                                        >
+                                    {agents.map((agent) => {
+                                        const status = agentConnectionStatus[agent.id] || 'idle';
+                                        const error = agentConnectionError[agent.id];
+
+                                        return (
                                             <div
+                                                key={agent.id}
                                                 className={clsx(
-                                                    'w-10 h-10 rounded-lg flex items-center justify-center',
+                                                    'p-4 rounded-lg border transition-colors',
                                                     selectedAgent?.id === agent.id
-                                                        ? 'bg-primary-600'
-                                                        : 'bg-dark-600'
+                                                        ? 'bg-primary-500/10 border-primary-500/30'
+                                                        : 'bg-dark-700/50 border-dark-600 hover:border-dark-500'
                                                 )}
                                             >
-                                                <span className="text-white font-semibold">
-                                                    {agent.displayName.charAt(0).toUpperCase()}
-                                                </span>
-                                            </div>
-                                            <div className="flex-1">
-                                                <p className="text-dark-100 font-medium">
-                                                    {agent.displayName}
-                                                </p>
-                                                <p className="text-sm text-dark-500">
-                                                    {agent.projectId} / {agent.location}
-                                                </p>
-                                            </div>
-                                            <div className="flex items-center gap-2">
-                                                {selectedAgent?.id !== agent.id && (
-                                                    <Button
-                                                        variant="ghost"
-                                                        size="sm"
-                                                        onClick={() => setSelectedAgent(agent)}
+                                                <div className="flex items-center gap-4">
+                                                    <div
+                                                        className={clsx(
+                                                            'w-10 h-10 rounded-lg flex items-center justify-center',
+                                                            selectedAgent?.id === agent.id
+                                                                ? 'bg-primary-600'
+                                                                : 'bg-dark-600'
+                                                        )}
                                                     >
-                                                        Select
-                                                    </Button>
+                                                        <span className="text-white font-semibold">
+                                                            {agent.displayName.charAt(0).toUpperCase()}
+                                                        </span>
+                                                    </div>
+                                                    <div className="flex-1">
+                                                        <p className="text-dark-100 font-medium">
+                                                            {agent.displayName}
+                                                        </p>
+                                                        <p className="text-sm text-dark-500">
+                                                            {agent.projectId} / {agent.location}
+                                                        </p>
+                                                    </div>
+                                                    <div className="flex items-center gap-2">
+                                                        {/* Connection Status */}
+                                                        {status === 'connected' && (
+                                                            <span className="flex items-center gap-1 text-xs text-success-400 bg-success-500/10 px-2 py-1 rounded">
+                                                                <CheckCircle className="w-3 h-3" />
+                                                                Connected
+                                                            </span>
+                                                        )}
+                                                        {status === 'failed' && (
+                                                            <span className="flex items-center gap-1 text-xs text-danger-400 bg-danger-500/10 px-2 py-1 rounded">
+                                                                <AlertCircle className="w-3 h-3" />
+                                                                Failed
+                                                            </span>
+                                                        )}
+
+                                                        {/* Test Connection Button */}
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="sm"
+                                                            onClick={() => handleTestConnection(agent)}
+                                                            disabled={status === 'testing'}
+                                                        >
+                                                            {status === 'testing' ? (
+                                                                <Loader2 className="w-4 h-4 animate-spin" />
+                                                            ) : (
+                                                                <Wifi className="w-4 h-4" />
+                                                            )}
+                                                        </Button>
+
+                                                        {/* Select Button */}
+                                                        {selectedAgent?.id !== agent.id && (
+                                                            <Button
+                                                                variant="ghost"
+                                                                size="sm"
+                                                                onClick={() => setSelectedAgent(agent)}
+                                                            >
+                                                                Select
+                                                            </Button>
+                                                        )}
+                                                        {selectedAgent?.id === agent.id && (
+                                                            <span className="flex items-center gap-1 text-sm text-primary-400">
+                                                                <Check className="w-4 h-4" /> Active
+                                                            </span>
+                                                        )}
+
+                                                        {/* Delete Button */}
+                                                        <button
+                                                            onClick={() => handleRemoveAgent(agent.id)}
+                                                            className="p-2 rounded-lg text-dark-400 hover:text-danger-500 hover:bg-danger-500/10 transition-colors"
+                                                        >
+                                                            <Trash2 className="w-4 h-4" />
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                                {/* Connection Error */}
+                                                {error && (
+                                                    <p className="mt-2 text-xs text-danger-400 bg-danger-500/10 px-3 py-1.5 rounded">
+                                                        {error}
+                                                    </p>
                                                 )}
-                                                {selectedAgent?.id === agent.id && (
-                                                    <span className="flex items-center gap-1 text-sm text-primary-400">
-                                                        <Check className="w-4 h-4" /> Active
-                                                    </span>
-                                                )}
-                                                <button
-                                                    onClick={() => handleRemoveAgent(agent.id)}
-                                                    className="p-2 rounded-lg text-dark-400 hover:text-danger-500 hover:bg-danger-500/10 transition-colors"
-                                                >
-                                                    <Trash2 className="w-4 h-4" />
-                                                </button>
                                             </div>
-                                        </div>
-                                    ))}
+                                        );
+                                    })}
                                 </div>
                             )}
                         </CardContent>
@@ -253,17 +437,90 @@ export default function Settings() {
                             subtitle="Upload your service account key file"
                         />
                         <CardContent>
-                            <div className="flex items-center gap-4">
-                                <div className="flex-1 p-4 bg-dark-700/50 border border-dashed border-dark-600 rounded-lg text-center">
-                                    <Key className="w-8 h-8 text-dark-500 mx-auto mb-2" />
-                                    <p className="text-sm text-dark-400">
-                                        Drop credentials.json here or click to upload
+                            {credentialsInfo ? (
+                                <div className="space-y-4">
+                                    <div className="flex items-center gap-4 p-4 bg-success-500/10 border border-success-500/30 rounded-lg">
+                                        <div className="w-12 h-12 rounded-lg bg-success-500/20 flex items-center justify-center">
+                                            <CheckCircle className="w-6 h-6 text-success-400" />
+                                        </div>
+                                        <div className="flex-1">
+                                            <p className="text-sm font-medium text-dark-200">Credentials Configured</p>
+                                            <p className="text-xs text-dark-400 mt-1">
+                                                Project: <span className="font-mono text-dark-300">{credentialsInfo.projectId}</span>
+                                            </p>
+                                            <p className="text-xs text-dark-400">
+                                                Email: <span className="font-mono text-dark-300">{credentialsInfo.clientEmail}</span>
+                                            </p>
+                                        </div>
+                                        <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            onClick={handleRemoveCredentials}
+                                            disabled={credentialsLoading}
+                                            className="text-danger-400 hover:text-danger-300 hover:bg-danger-500/10"
+                                        >
+                                            <Trash2 className="w-4 h-4" />
+                                        </Button>
+                                    </div>
+                                    <p className="text-xs text-dark-500">
+                                        To use different credentials, remove the current ones and upload a new file.
                                     </p>
                                 </div>
-                                <Button variant="secondary" leftIcon={<Upload className="w-4 h-4" />}>
-                                    Upload
-                                </Button>
-                            </div>
+                            ) : (
+                                <div className="space-y-4">
+                                    <div
+                                        className={clsx(
+                                            'relative p-6 border-2 border-dashed rounded-lg text-center transition-colors cursor-pointer',
+                                            isDragging ? 'border-primary-500 bg-primary-500/10' : 'border-dark-600 hover:border-dark-500'
+                                        )}
+                                        onDragOver={handleDragOver}
+                                        onDragLeave={handleDragLeave}
+                                        onDrop={handleDrop}
+                                        onClick={() => fileInputRef.current?.click()}
+                                    >
+                                        <input
+                                            ref={fileInputRef}
+                                            type="file"
+                                            accept=".json,application/json"
+                                            onChange={handleFileSelect}
+                                            className="hidden"
+                                        />
+                                        {credentialsLoading ? (
+                                            <>
+                                                <Loader2 className="w-10 h-10 text-primary-500 mx-auto mb-3 animate-spin" />
+                                                <p className="text-sm text-dark-300">Uploading credentials...</p>
+                                            </>
+                                        ) : (
+                                            <>
+                                                <Key className="w-10 h-10 text-dark-500 mx-auto mb-3" />
+                                                <p className="text-sm text-dark-300">
+                                                    Drop your <span className="font-mono text-primary-400">credentials.json</span> here
+                                                </p>
+                                                <p className="text-xs text-dark-500 mt-1">
+                                                    or click to browse
+                                                </p>
+                                            </>
+                                        )}
+                                    </div>
+                                    {credentialsError && (
+                                        <div className="flex items-center gap-2 p-3 bg-danger-500/10 border border-danger-500/30 rounded-lg">
+                                            <AlertCircle className="w-4 h-4 text-danger-400 flex-shrink-0" />
+                                            <p className="text-xs text-danger-300">{credentialsError}</p>
+                                        </div>
+                                    )}
+                                    <p className="text-xs text-dark-500">
+                                        Download a service account key from{' '}
+                                        <a
+                                            href="https://console.cloud.google.com/iam-admin/serviceaccounts"
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="text-primary-400 hover:text-primary-300 underline"
+                                        >
+                                            Google Cloud Console
+                                        </a>
+                                    </p>
+                                </div>
+                            )}
                         </CardContent>
                     </Card>
                 </div>

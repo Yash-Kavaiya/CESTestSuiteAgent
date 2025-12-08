@@ -6,11 +6,17 @@ import {
     AlertTriangle,
     CheckCircle,
     Info,
+    Loader2,
+    RefreshCw,
+    MessageSquare,
 } from 'lucide-react';
 import Card, { CardContent } from '../components/ui/Card';
+import Button from '../components/ui/Button';
 import clsx from 'clsx';
 import { useSearchParams } from 'react-router-dom';
 import { runsApi } from '../api/runs';
+import { conversationsApi, CoverageAnalytics } from '../api/conversations';
+import { useAgentStore } from '../store/useAgentStore';
 
 export default function Coverage() {
     const [activeTab, setActiveTab] = useState<'intents' | 'pages' | 'transitions'>('intents');
@@ -18,6 +24,13 @@ export default function Coverage() {
     const runId = searchParams.get('runId');
     const [coverageData, setCoverageData] = useState<any>(null);
     const [loading, setLoading] = useState(true);
+
+    // Live conversation coverage
+    const { selectedAgent } = useAgentStore();
+    const [liveAnalytics, setLiveAnalytics] = useState<CoverageAnalytics | null>(null);
+    const [liveLoading, setLiveLoading] = useState(false);
+    const [liveError, setLiveError] = useState<string | null>(null);
+    const [showLiveData, setShowLiveData] = useState(false);
 
     useEffect(() => {
         if (runId) {
@@ -55,23 +68,120 @@ export default function Coverage() {
         }
     };
 
+    const loadLiveAnalytics = async () => {
+        if (!selectedAgent) return;
+
+        setLiveLoading(true);
+        setLiveError(null);
+
+        try {
+            const response = await conversationsApi.getCoverageAnalytics(selectedAgent, 100);
+            if (response.success && response.data) {
+                setLiveAnalytics(response.data);
+                setShowLiveData(true);
+            } else {
+                setLiveError(response.error || 'Failed to load live analytics');
+            }
+        } catch (error: any) {
+            setLiveError(error.message || 'Failed to load live analytics');
+        } finally {
+            setLiveLoading(false);
+        }
+    };
+
     if (loading) {
         return <div className="p-8 text-center text-dark-400">Loading coverage data...</div>;
     }
 
-    if (!coverageData) {
-        return <div className="p-8 text-center text-dark-400">No coverage data available. Please run a simulation first.</div>;
+    // Determine which data to display
+    const displayData = showLiveData && liveAnalytics ? {
+        intentCoverage: 0, // Can't calculate % without knowing total intents in agent
+        testedIntents: liveAnalytics.intentCount,
+        totalIntents: liveAnalytics.intentCount,
+        pageCoverage: 0,
+        testedPages: liveAnalytics.pageCount,
+        totalPages: liveAnalytics.pageCount,
+        transitionCoverage: 0,
+        untestedIntents: [],
+        untestedPages: [],
+        intentCounts: liveAnalytics.intentCounts,
+        pageCounts: liveAnalytics.pageCounts,
+        uniqueIntents: liveAnalytics.uniqueIntents,
+        uniquePages: liveAnalytics.uniquePages,
+        totalConversations: liveAnalytics.totalConversations,
+    } : coverageData;
+
+    if (!displayData) {
+        return (
+            <div className="p-8 text-center text-dark-400">
+                <MessageSquare className="w-12 h-12 mx-auto mb-4 text-dark-600" />
+                <p className="mb-4">No coverage data available. Please run a simulation first.</p>
+                {selectedAgent && (
+                    <Button onClick={loadLiveAnalytics} disabled={liveLoading}>
+                        {liveLoading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <RefreshCw className="w-4 h-4 mr-2" />}
+                        Load from Conversation History
+                    </Button>
+                )}
+            </div>
+        );
     }
 
     return (
         <div className="space-y-6 animate-fade-in">
             {/* Page Header */}
-            <div>
-                <h1 className="text-2xl font-bold text-primary-700">Coverage Analysis</h1>
-                <p className="text-dark-400 mt-1">
-                    Analyze test coverage across intents, pages, and conversation flows
-                </p>
+            <div className="flex items-center justify-between">
+                <div>
+                    <h1 className="text-2xl font-bold text-primary-700">Coverage Analysis</h1>
+                    <p className="text-dark-400 mt-1">
+                        Analyze test coverage across intents, pages, and conversation flows
+                    </p>
+                </div>
+                {selectedAgent && (
+                    <div className="flex items-center gap-2">
+                        <Button
+                            variant={showLiveData ? 'primary' : 'secondary'}
+                            onClick={() => {
+                                if (!liveAnalytics) {
+                                    loadLiveAnalytics();
+                                } else {
+                                    setShowLiveData(!showLiveData);
+                                }
+                            }}
+                            disabled={liveLoading}
+                        >
+                            {liveLoading ? (
+                                <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                            ) : (
+                                <MessageSquare className="w-4 h-4 mr-2" />
+                            )}
+                            {showLiveData ? 'Showing Live Data' : 'Load Live Conversations'}
+                        </Button>
+                    </div>
+                )}
             </div>
+
+            {/* Data Source Indicator */}
+            {showLiveData && liveAnalytics && (
+                <div className="flex items-center gap-2 p-3 bg-primary-500/10 border border-primary-500/30 rounded-lg">
+                    <MessageSquare className="w-4 h-4 text-primary-400" />
+                    <span className="text-sm text-primary-300">
+                        Showing data from {liveAnalytics.totalConversations} real conversations
+                    </span>
+                    <button
+                        onClick={() => setShowLiveData(false)}
+                        className="ml-auto text-xs text-primary-400 hover:text-primary-300"
+                    >
+                        Switch to Test Data
+                    </button>
+                </div>
+            )}
+
+            {liveError && (
+                <div className="flex items-center gap-2 p-3 bg-danger-500/10 border border-danger-500/30 rounded-lg">
+                    <AlertTriangle className="w-4 h-4 text-danger-400" />
+                    <span className="text-sm text-danger-300">{liveError}</span>
+                </div>
+            )}
 
             {/* Overview Stats */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -84,19 +194,30 @@ export default function Coverage() {
                             <div>
                                 <p className="text-sm text-dark-400 font-medium">Intent Coverage</p>
                                 <div className="flex items-baseline gap-2 mt-1">
-                                    <span className="text-2xl font-bold text-dark-50">{coverageData.intentCoverage}%</span>
-                                    <span className="text-sm text-dark-500">
-                                        ({coverageData.testedIntents}/{coverageData.totalIntents})
-                                    </span>
+                                    {showLiveData ? (
+                                        <>
+                                            <span className="text-2xl font-bold text-dark-50">{displayData.testedIntents}</span>
+                                            <span className="text-sm text-dark-500">unique intents used</span>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <span className="text-2xl font-bold text-dark-50">{displayData.intentCoverage}%</span>
+                                            <span className="text-sm text-dark-500">
+                                                ({displayData.testedIntents}/{displayData.totalIntents})
+                                            </span>
+                                        </>
+                                    )}
                                 </div>
                             </div>
                         </div>
-                        <div className="mt-4 w-full bg-dark-700 h-2 rounded-full overflow-hidden">
-                            <div
-                                className="h-full bg-primary-500 rounded-full transition-all duration-500"
-                                style={{ width: `${coverageData.intentCoverage}%` }}
-                            />
-                        </div>
+                        {!showLiveData && (
+                            <div className="mt-4 w-full bg-dark-700 h-2 rounded-full overflow-hidden">
+                                <div
+                                    className="h-full bg-primary-500 rounded-full transition-all duration-500"
+                                    style={{ width: `${displayData.intentCoverage}%` }}
+                                />
+                            </div>
+                        )}
                     </CardContent>
                 </Card>
 
@@ -109,19 +230,30 @@ export default function Coverage() {
                             <div>
                                 <p className="text-sm text-dark-400 font-medium">Page Coverage</p>
                                 <div className="flex items-baseline gap-2 mt-1">
-                                    <span className="text-2xl font-bold text-dark-50">{coverageData.pageCoverage}%</span>
-                                    <span className="text-sm text-dark-500">
-                                        ({coverageData.testedPages}/{coverageData.totalPages})
-                                    </span>
+                                    {showLiveData ? (
+                                        <>
+                                            <span className="text-2xl font-bold text-dark-50">{displayData.testedPages}</span>
+                                            <span className="text-sm text-dark-500">unique pages visited</span>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <span className="text-2xl font-bold text-dark-50">{displayData.pageCoverage}%</span>
+                                            <span className="text-sm text-dark-500">
+                                                ({displayData.testedPages}/{displayData.totalPages})
+                                            </span>
+                                        </>
+                                    )}
                                 </div>
                             </div>
                         </div>
-                        <div className="mt-4 w-full bg-dark-700 h-2 rounded-full overflow-hidden">
-                            <div
-                                className="h-full bg-secondary-500 rounded-full transition-all duration-500"
-                                style={{ width: `${coverageData.pageCoverage}%` }}
-                            />
-                        </div>
+                        {!showLiveData && (
+                            <div className="mt-4 w-full bg-dark-700 h-2 rounded-full overflow-hidden">
+                                <div
+                                    className="h-full bg-secondary-500 rounded-full transition-all duration-500"
+                                    style={{ width: `${displayData.pageCoverage}%` }}
+                                />
+                            </div>
+                        )}
                     </CardContent>
                 </Card>
 
@@ -132,20 +264,32 @@ export default function Coverage() {
                                 <GitBranch className="w-6 h-6" />
                             </div>
                             <div>
-                                <p className="text-sm text-dark-400 font-medium">Transitions</p>
+                                <p className="text-sm text-dark-400 font-medium">
+                                    {showLiveData ? 'Conversations' : 'Transitions'}
+                                </p>
                                 <div className="flex items-baseline gap-2 mt-1">
-                                    {/* Placeholder for now as transitionCoverage is hard to calc perfectly without graph */}
-                                    <span className="text-2xl font-bold text-dark-50">{coverageData.transitionCoverage || 0}%</span>
-                                    <span className="text-sm text-dark-500">Verified</span>
+                                    {showLiveData ? (
+                                        <>
+                                            <span className="text-2xl font-bold text-dark-50">{displayData.totalConversations}</span>
+                                            <span className="text-sm text-dark-500">analyzed</span>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <span className="text-2xl font-bold text-dark-50">{displayData.transitionCoverage || 0}%</span>
+                                            <span className="text-sm text-dark-500">Verified</span>
+                                        </>
+                                    )}
                                 </div>
                             </div>
                         </div>
-                        <div className="mt-4 w-full bg-dark-700 h-2 rounded-full overflow-hidden">
-                            <div
-                                className="h-full bg-success-500 rounded-full transition-all duration-500"
-                                style={{ width: `${coverageData.transitionCoverage || 0}%` }}
-                            />
-                        </div>
+                        {!showLiveData && (
+                            <div className="mt-4 w-full bg-dark-700 h-2 rounded-full overflow-hidden">
+                                <div
+                                    className="h-full bg-success-500 rounded-full transition-all duration-500"
+                                    style={{ width: `${displayData.transitionCoverage || 0}%` }}
+                                />
+                            </div>
+                        )}
                     </CardContent>
                 </Card>
             </div>
@@ -171,14 +315,32 @@ export default function Coverage() {
                     </div>
                 </div>
                 <CardContent className="p-0">
-                    {/* Content would go here - placeholder for detailed list */}
                     <div className="p-8 text-center text-dark-400">
                         {activeTab === 'intents' && (
                             <div className="space-y-4 text-left">
-                                <h3 className="text-lg font-medium text-dark-50 mb-4">Untested Intents</h3>
-                                {coverageData.untestedIntents && coverageData.untestedIntents.length > 0 ? (
+                                <h3 className="text-lg font-medium text-dark-50 mb-4">
+                                    {showLiveData ? 'Intents Used in Conversations' : 'Untested Intents'}
+                                </h3>
+                                {showLiveData && displayData.uniqueIntents ? (
+                                    <div className="space-y-3">
+                                        {displayData.uniqueIntents.map((intent: string) => (
+                                            <div key={intent} className="flex items-center justify-between p-3 bg-dark-700 rounded-lg">
+                                                <span className="flex items-center gap-2 text-dark-200">
+                                                    <CheckCircle className="w-4 h-4 text-success-400" />
+                                                    {intent}
+                                                </span>
+                                                <span className="text-sm text-dark-400">
+                                                    {displayData.intentCounts?.[intent] || 0} times
+                                                </span>
+                                            </div>
+                                        ))}
+                                        {displayData.uniqueIntents.length === 0 && (
+                                            <p className="text-dark-500">No intents found in conversations.</p>
+                                        )}
+                                    </div>
+                                ) : displayData.untestedIntents && displayData.untestedIntents.length > 0 ? (
                                     <ul className="grid grid-cols-2 gap-2">
-                                        {coverageData.untestedIntents.map((intent: string) => (
+                                        {displayData.untestedIntents.map((intent: string) => (
                                             <li key={intent} className="flex items-center gap-2 text-danger-400">
                                                 <AlertTriangle className="w-4 h-4" /> {intent}
                                             </li>
@@ -193,10 +355,29 @@ export default function Coverage() {
                         )}
                         {activeTab === 'pages' && (
                             <div className="space-y-4 text-left">
-                                <h3 className="text-lg font-medium text-dark-50 mb-4">Untested Pages</h3>
-                                {coverageData.untestedPages && coverageData.untestedPages.length > 0 ? (
+                                <h3 className="text-lg font-medium text-dark-50 mb-4">
+                                    {showLiveData ? 'Pages Visited in Conversations' : 'Untested Pages'}
+                                </h3>
+                                {showLiveData && displayData.uniquePages ? (
+                                    <div className="space-y-3">
+                                        {displayData.uniquePages.map((page: string) => (
+                                            <div key={page} className="flex items-center justify-between p-3 bg-dark-700 rounded-lg">
+                                                <span className="flex items-center gap-2 text-dark-200">
+                                                    <Layout className="w-4 h-4 text-secondary-400" />
+                                                    {page}
+                                                </span>
+                                                <span className="text-sm text-dark-400">
+                                                    {displayData.pageCounts?.[page] || 0} visits
+                                                </span>
+                                            </div>
+                                        ))}
+                                        {displayData.uniquePages.length === 0 && (
+                                            <p className="text-dark-500">No pages found in conversations.</p>
+                                        )}
+                                    </div>
+                                ) : displayData.untestedPages && displayData.untestedPages.length > 0 ? (
                                     <ul className="grid grid-cols-2 gap-2">
-                                        {coverageData.untestedPages.map((page: string) => (
+                                        {displayData.untestedPages.map((page: string) => (
                                             <li key={page} className="flex items-center gap-2 text-danger-400">
                                                 <Layout className="w-4 h-4" /> {page}
                                             </li>

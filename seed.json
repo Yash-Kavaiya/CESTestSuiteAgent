@@ -1,0 +1,54 @@
+{
+    "agentId": "projects/test-project/locations/global/agents/test-agent",
+    "conversations": [
+        {
+            "conversationId": "seed-conv-1",
+            "displayName": "Seed Conversation 1",
+            "turns": [
+                {
+                    "userInput": {
+                        "input": {
+                            "text": {
+                                "text": "hello"
+                            }
+                        }
+                    },
+                    "virtualAgentOutput": {
+                        "textResponses": [
+                            {
+                                "text": [
+                                    "Hi there!"
+                                ]
+                            }
+                        ]
+                    }
+                }
+            ]
+        },
+        {
+            "conversationId": "seed-conv-2",
+            "displayName": "Seed Conversation 2",
+            "turns": [
+                {
+                    "userInput": {
+                        "input": {
+                            "text": {
+                                "text": "coverage test"
+                            }
+                        }
+                    },
+                    "virtualAgentOutput": {
+                        "textResponses": [
+                            {
+                                "text": [
+                                    "Coverage verified"
+                                ]
+                            }
+                        ]
+                    }
+                }
+            ]
+        }
+    ],
+    "name": "Verification Run"
+}

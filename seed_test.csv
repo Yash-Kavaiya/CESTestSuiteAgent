@@ -1,0 +1,3 @@
+Test Case ID,User Input,Expected Intent,Expected Page,Expected Response
+TC_001,hello,Default Welcome Intent,Start Page,Hi there!
+TC_002,check coverage,Coverage Intent,Coverage Page,Verified

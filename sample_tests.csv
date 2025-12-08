@@ -1,0 +1,11 @@
+conversation_id,turn_number,user_input,expected_intent,expected_response,expected_parameters,tags
+conv_001,1,"Hello","greeting.hello","Hello! How can I help you today?","","smoke,greeting"
+conv_001,2,"I want to book a flight","flight.booking","Where would you like to go?","","smoke,booking"
+conv_001,3,"From New York to Los Angeles",,"When would you like to depart?","{\"origin\":\"NYC\",\"destination\":\"LAX\"}","booking"
+conv_001,4,"Next Friday","flight.date","What class would you prefer?","{\"date\":\"2025-01-10\"}","booking"
+conv_002,1,"Check my order status","order.status","Please provide your order number.","","smoke,order"
+conv_002,2,"Order 12345",,"Your order 12345 is on the way!","{\"orderId\":\"12345\"}","order"
+conv_003,1,"What are your business hours?","faq.hours","We are open Monday to Friday, 9 AM to 6 PM.","","faq,smoke"
+conv_004,1,"Goodbye","greeting.goodbye","Goodbye! Have a great day!","","greeting"
+conv_005,1,"I need help with my account","account.help","I can help you with your account. What do you need?","","account"
+conv_005,2,"Reset my password","account.password_reset","I've sent a password reset link to your email.","","account"

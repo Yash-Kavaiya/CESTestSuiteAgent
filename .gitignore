@@ -1,0 +1,94 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Build
+dist/
+build/
+*.tsbuildinfo
+
+# Environment
+.env
+.env.local
+.env.*.local
+credentials.json
+gen-ai-guru-gdg-pune-*.json
+innate-lacing-*.json
+service-account-key.json
+*-firebase-adminsdk-*.json
+*-firebase-*.json
+*.json.bak
+firebase-service-account.json
+
+# Database
+*.sqlite
+*.sqlite3
+data/
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Test coverage
+coverage/
+
+# Cache
+.cache/
+.npm/
+.eslintcache
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+.venv/
+.env.venv/
+pip-log.txt
+pip-delete-this-directory.txt
+*.egg-info/
+.eggs/
+*.egg
+
+# Uploads
+uploads/
+temp/
+tmp/
+
+# Reports & Downloads
+*.csv.bak
+simulation_report_*.csv
+test_download*.csv
+
+# TypeScript
+*.tsbuildinfo
+.tscache/
+
+# Testing
+*.test.js.map
+*.spec.js.map
+.nyc_output/
+
+# Misc
+*.bak
+*.tmp
+*.temp
+*.orig
+.history/
+*.pid
+*.seed

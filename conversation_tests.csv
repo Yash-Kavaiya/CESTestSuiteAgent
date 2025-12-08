@@ -1,0 +1,20 @@
+test_name,turn_number,user_input,expected_intent,expected_page,expected_response,expected_params,session_params,start_flow,tags,notes
+Booking Flight Complete Flow,1,Hi I want to book a flight,flight.booking,Booking Start,"Sure! I can help you book a flight. Where would you like to fly from?",{},,Default Start Flow,"#smoke,#booking",Complete booking flow test
+Booking Flight Complete Flow,2,From New York,flight.origin,Origin Collected,"Great, New York. And where would you like to fly to?","{""origin"": ""New York""}",,,"#booking",
+Booking Flight Complete Flow,3,To Los Angeles,flight.destination,Destination Collected,"New York to Los Angeles. When would you like to depart?","{""destination"": ""Los Angeles""}",,,"#booking",
+Booking Flight Complete Flow,4,Next Friday please,flight.date,Date Collected,"I have you flying on Friday. What class would you prefer - Economy, Business, or First Class?","{""departure_date"": ""next_friday""}",,,"#booking",
+Booking Flight Complete Flow,5,Economy,flight.class,Class Collected,"Economy class selected. Let me search for available flights for you.","{""travel_class"": ""economy""}",,,"#booking",
+Order Status Check,1,I want to check my order status,order.status,Order Status,"Of course! Could you please provide your order number?",{},,Default Start Flow,"#smoke,#orders",Order tracking flow
+Order Status Check,2,My order number is 12345,order.lookup,Order Found,"I found order #12345. Your order is currently being prepared and will ship within 24 hours.","{""order_id"": ""12345""}",,,"#orders",
+Order Status Check,3,When will it arrive?,order.delivery_estimate,Delivery Info,"Based on your location, you can expect delivery within 3-5 business days after shipping.","{""estimated_delivery"": ""3-5 days""}",,,"#orders",
+Account Password Reset,1,I forgot my password,account.password_reset,Password Reset,"No problem! I can help you reset your password. What email address is associated with your account?",{},,Default Start Flow,"#smoke,#account",Password reset flow
+Account Password Reset,2,test@example.com,email.capture,Email Verified,"I've sent a password reset link to test@example.com. Please check your inbox.","{""email"": ""test@example.com""}",,,"#account",
+FAQ Business Hours,1,What are your business hours?,faq.hours,FAQ Page,"We're open Monday through Friday from 9 AM to 6 PM Eastern Time. Is there anything else I can help you with?",{},,Default Start Flow,"#smoke,#faq",Simple FAQ query
+Support Escalation,1,I need to speak to a human,support.escalation,Escalation Page,"I understand you'd like to speak with a human agent. Let me connect you to our support team.",{},,Default Start Flow,"#smoke,#support",Agent handoff test
+Support Escalation,2,Yes please connect me,support.confirm_handoff,Handoff Initiated,"Connecting you now. A support representative will be with you shortly. Your wait time is approximately 5 minutes.",{},,,"#support",
+Greeting and Goodbye,1,Hello,greeting.hello,Welcome Page,"Hello! Welcome to our service. How can I assist you today?",{},,Default Start Flow,"#smoke,#greeting",Basic greeting test
+Greeting and Goodbye,2,Goodbye,greeting.goodbye,End Session,"Goodbye! Thank you for using our service. Have a great day!",{},,,"#greeting",
+Error Handling - Unknown,1,asdfghjkl random text,fallback.unknown,Fallback Page,"I'm sorry, I didn't quite understand that. Could you please rephrase your question?",{},,Default Start Flow,"#edge,#fallback",Fallback intent test
+Multi-Intent Booking and Status,1,Book a flight and check my order,multiple.request,Disambiguation,I can help with both. Which would you like to do first - book a flight or check your order status?,{},,Default Start Flow,#complex,Multi-intent handling
+Multi-Intent Booking and Status,2,Check order first,order.status,Order Status,"Sure! What's your order number?",{},,,"#complex",
+Multi-Intent Booking and Status,3,ABC123,order.lookup,Order Found,"Order ABC123 status: Shipped. Now, would you like to book a flight?","{""order_id"": ""ABC123""}",,,"#complex",

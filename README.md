@@ -13,13 +13,6 @@
 <p align="center">
   <strong>Enterprise-grade testing solution for validating conversational AI agents with real-time analytics, bulk testing, and comprehensive coverage reports.</strong>
 </p>
-
-[Features](#-features) •
-[Quick Start](#-quick-start) •
-[Architecture](#-architecture) •
-[API Reference](#-api-reference) •
-[Contributing](#-contributing)
-
 </div>
 
 ## ✨ Features

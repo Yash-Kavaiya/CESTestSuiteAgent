@@ -22,28 +22,7 @@
 
 </div>
 
----
-
-## 📋 Table of Contents
-
-- [Features](#-features)
-- [Quick Start](#-quick-start)
-- [Architecture](#-architecture)
-- [Project Structure](#-project-structure)
-- [Configuration](#-configuration)
-- [API Reference](#-api-reference)
-- [Testing Workflows](#-testing-workflows)
-- [Tech Stack](#-tech-stack)
-- [Contributing](#-contributing)
-- [License](#-license)
-
----
-
 ## ✨ Features
-
-<table>
-<tr>
-<td width="50%">
 
 ### 🎯 Single Conversation Testing
 - Real-time conversation simulation
@@ -51,8 +30,8 @@
 - Parameter extraction validation
 - Page flow verification
 
-</td>
-<td width="50%">
+<img width="1906" height="808" alt="image" src="https://github.com/user-attachments/assets/42197fa5-0b15-4076-ade5-6defdd61c2a9" />
+
 
 ### 📦 Bulk Testing Suite
 - CSV file upload support
@@ -60,10 +39,8 @@
 - Progress tracking & reporting
 - Batch result analysis
 
-</td>
-</tr>
-<tr>
-<td width="50%">
+<img width="1892" height="812" alt="image" src="https://github.com/user-attachments/assets/9b21ff0c-7fdb-4f76-9dc8-ea64a302159c" />
+
 
 ### 📊 Analytics Dashboard
 - Pass/fail rate metrics
@@ -71,8 +48,8 @@
 - Coverage statistics
 - Recent run summaries
 
-</td>
-<td width="50%">
+<img width="1887" height="813" alt="image" src="https://github.com/user-attachments/assets/5b08a96e-6c2e-4a7e-a7e6-c6f3b09242a6" />
+
 
 ### 🎭 Conversation Simulator
 - Interactive chat interface
@@ -80,10 +57,7 @@
 - Session state management
 - Response comparison tools
 
-</td>
-</tr>
-<tr>
-<td width="50%">
+<img width="1902" height="808" alt="image" src="https://github.com/user-attachments/assets/beec931f-6f8f-4ba3-adde-0ef1b9be300c" />
 
 ### 📈 Coverage Reports
 - Intent coverage tracking
@@ -91,8 +65,8 @@
 - Untested flow identification
 - Gap analysis reports
 
-</td>
-<td width="50%">
+<img width="1902" height="566" alt="image" src="https://github.com/user-attachments/assets/1da630b5-b56d-4f90-84f3-1b1ce8a842ef" />
+
 
 ### ⚙️ Multi-Agent Support
 - Multiple agent configurations
@@ -100,11 +74,8 @@
 - Centralized settings management
 - Secure credential storage
 
-</td>
-</tr>
-</table>
+<img width="1907" height="807" alt="image" src="https://github.com/user-attachments/assets/bbd11b6b-a87b-4e4e-a61a-b8f0365301fa" />
 
----
 
 ## 🚀 Quick Start
 

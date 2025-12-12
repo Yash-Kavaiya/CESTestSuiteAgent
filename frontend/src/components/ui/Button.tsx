@@ -26,19 +26,19 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(
         ref
     ) => {
         const baseStyles =
-            'inline-flex items-center justify-center gap-2 font-medium rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-dark-900 disabled:opacity-50 disabled:cursor-not-allowed';
+            'inline-flex items-center justify-center gap-2 font-medium rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-white disabled:opacity-50 disabled:cursor-not-allowed';
 
         const variants = {
             primary:
-                'bg-primary-600 text-white hover:bg-primary-500 focus:ring-primary-500 shadow-lg shadow-primary-600/25',
+                'bg-primary-600 text-white hover:bg-primary-700 focus:ring-primary-500 shadow-google',
             secondary:
-                'bg-dark-700 text-dark-200 hover:bg-dark-600 focus:ring-dark-500 border border-dark-600',
+                'bg-white text-dark-200 hover:bg-dark-800 focus:ring-primary-500 border border-dark-600',
             success:
-                'bg-success-600 text-white hover:bg-success-500 focus:ring-success-500',
+                'bg-success-500 text-white hover:bg-success-600 focus:ring-success-500',
             danger:
-                'bg-danger-600 text-white hover:bg-danger-500 focus:ring-danger-500',
+                'bg-danger-500 text-white hover:bg-danger-600 focus:ring-danger-500',
             ghost:
-                'bg-transparent text-dark-300 hover:text-white hover:bg-dark-800 focus:ring-dark-500',
+                'bg-transparent text-dark-200 hover:text-dark-50 hover:bg-dark-800 focus:ring-primary-500',
         };
 
         const sizes = {
@@ -69,3 +69,4 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(
 Button.displayName = 'Button';
 
 export default Button;
+

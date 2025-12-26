@@ -51,7 +51,34 @@ export function initDatabase() {
         )
     `);
 
-    // Coverage stats cache (optional, or just calc on fly)
+    // Agents Table - for persisting agent configurations
+    db.exec(`
+        CREATE TABLE IF NOT EXISTS agents (
+            id TEXT PRIMARY KEY,
+            project_id TEXT NOT NULL,
+            location TEXT DEFAULT 'us-central1',
+            display_name TEXT NOT NULL,
+            default_language_code TEXT DEFAULT 'en',
+            created_at TEXT DEFAULT CURRENT_TIMESTAMP
+        )
+    `);
+
+    // Test Cases Table - for persisting test case definitions
+    db.exec(`
+        CREATE TABLE IF NOT EXISTS test_cases (
+            id TEXT PRIMARY KEY,
+            display_name TEXT NOT NULL,
+            tags TEXT, -- JSON array
+            notes TEXT,
+            test_config TEXT, -- JSON object
+            conversation_turns_json TEXT, -- JSON array of turns
+            dialogflow_name TEXT,
+            agent_id TEXT,
+            created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+            updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+        )
+    `);
+
     console.log('Database initialized');
 }
 

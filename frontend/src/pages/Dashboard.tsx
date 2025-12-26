@@ -24,71 +24,28 @@ export default function Dashboard() {
     const { dashboardMetrics, setDashboardMetrics } = useResultStore();
     const [isLoading, setIsLoading] = useState(false);
 
-    // Mock data for initial display
+    // Initialize with zero values
     useEffect(() => {
         setIsLoading(true);
-        // Simulate API call
         setTimeout(() => {
             setDashboardMetrics({
-                totalTestCases: 156,
-                totalRuns: 42,
-                lastRunPassRate: 87.5,
-                overallPassRate: 82.3,
-                avgExecutionTime: 1.2,
+                totalTestCases: 0,
+                totalRuns: 0,
+                lastRunPassRate: 0,
+                overallPassRate: 0,
+                avgExecutionTime: 0,
                 coverage: {
-                    totalIntents: 45,
-                    testedIntents: 38,
-                    intentCoveragePercent: 84.4,
-                    totalPages: 12,
-                    testedPages: 10,
-                    pageCoveragePercent: 83.3,
-                    untestedIntents: ['fallback.default', 'system.goodbye'],
-                    untestedPages: ['Error Page', 'Maintenance'],
+                    totalIntents: 0,
+                    testedIntents: 0,
+                    intentCoveragePercent: 0,
+                    totalPages: 0,
+                    testedPages: 0,
+                    pageCoveragePercent: 0,
+                    untestedIntents: [],
+                    untestedPages: [],
                 },
-                recentRuns: [
-                    {
-                        id: '1',
-                        name: 'Regression Suite v2.1',
-                        status: 'completed',
-                        totalTests: 50,
-                        passedTests: 44,
-                        failedTests: 6,
-                        startedAt: new Date().toISOString(),
-                        completedAt: new Date().toISOString(),
-                        createdAt: new Date().toISOString(),
-                    },
-                    {
-                        id: '2',
-                        name: 'Booking Flow Tests',
-                        status: 'completed',
-                        totalTests: 25,
-                        passedTests: 23,
-                        failedTests: 2,
-                        startedAt: new Date(Date.now() - 86400000).toISOString(),
-                        completedAt: new Date(Date.now() - 86400000).toISOString(),
-                        createdAt: new Date(Date.now() - 86400000).toISOString(),
-                    },
-                    {
-                        id: '3',
-                        name: 'FAQ Intent Tests',
-                        status: 'failed',
-                        totalTests: 30,
-                        passedTests: 18,
-                        failedTests: 12,
-                        startedAt: new Date(Date.now() - 172800000).toISOString(),
-                        completedAt: new Date(Date.now() - 172800000).toISOString(),
-                        createdAt: new Date(Date.now() - 172800000).toISOString(),
-                    },
-                ],
-                trends: [
-                    { date: 'Mon', totalTests: 45, passedTests: 38, failedTests: 7, passRate: 84 },
-                    { date: 'Tue', totalTests: 52, passedTests: 45, failedTests: 7, passRate: 87 },
-                    { date: 'Wed', totalTests: 38, passedTests: 30, failedTests: 8, passRate: 79 },
-                    { date: 'Thu', totalTests: 65, passedTests: 58, failedTests: 7, passRate: 89 },
-                    { date: 'Fri', totalTests: 50, passedTests: 44, failedTests: 6, passRate: 88 },
-                    { date: 'Sat', totalTests: 25, passedTests: 22, failedTests: 3, passRate: 88 },
-                    { date: 'Sun', totalTests: 30, passedTests: 26, failedTests: 4, passRate: 87 },
-                ],
+                recentRuns: [],
+                trends: [],
             });
             setIsLoading(false);
         }, 500);

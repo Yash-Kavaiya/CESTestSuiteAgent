@@ -1,60 +1,107 @@
 import { Router } from 'express';
-import { v4 as uuidv4 } from 'uuid';
+import { db } from '../database.js';
+import { validateRequest, createAgentSchema } from '../utils/validation.js';
 
 const router = Router();
 
-// In-memory storage for demo
-const agents = new Map<string, any>();
+// Agent interface for type safety
+interface Agent {
+    id: string;
+    displayName: string;
+    projectId: string;
+    location: string;
+    defaultLanguageCode: string;
+    createdAt: string;
+}
+
+// Prepared statements for better performance
+const getAllAgents = db.prepare('SELECT * FROM agents ORDER BY created_at DESC');
+const getAgentById = db.prepare('SELECT * FROM agents WHERE id = ?');
+const insertAgent = db.prepare(`
+    INSERT INTO agents (id, project_id, location, display_name, default_language_code, created_at)
+    VALUES (?, ?, ?, ?, ?, ?)
+`);
+const deleteAgentById = db.prepare('DELETE FROM agents WHERE id = ?');
+
+// Helper to map DB row to API response format
+function mapAgentRow(row: any): Agent {
+    return {
+        id: row.id,
+        displayName: row.display_name,
+        projectId: row.project_id,
+        location: row.location,
+        defaultLanguageCode: row.default_language_code,
+        createdAt: row.created_at,
+    };
+}
 
 // List all agents
 router.get('/', (req, res) => {
-    const allAgents = Array.from(agents.values());
-    res.json({ success: true, data: allAgents });
+    try {
+        const rows = getAllAgents.all();
+        const agents = rows.map(mapAgentRow);
+        res.json({ success: true, data: agents });
+    } catch (error: any) {
+        res.status(500).json({ success: false, error: error.message });
+    }
 });
 
 // Get agent details
 router.get('/:id', (req, res) => {
-    const agent = agents.get(req.params.id);
-    if (!agent) {
-        return res.status(404).json({ success: false, error: 'Agent not found' });
+    try {
+        const row = getAgentById.get(req.params.id);
+        if (!row) {
+            return res.status(404).json({ success: false, error: 'Agent not found' });
+        }
+        res.json({ success: true, data: mapAgentRow(row) });
+    } catch (error: any) {
+        res.status(500).json({ success: false, error: error.message });
     }
-    res.json({ success: true, data: agent });
 });
 
-// Add agent configuration
-router.post('/', (req, res) => {
-    const { projectId, location, agentId, displayName } = req.body;
+// Add agent configuration - with Zod validation
+router.post('/', validateRequest(createAgentSchema), (req, res) => {
+    try {
+        const { projectId, location, agentId, displayName } = req.body;
 
-    if (!projectId || !agentId || !displayName) {
-        return res.status(400).json({
-            success: false,
-            error: 'Missing required fields: projectId, agentId, displayName',
-        });
+        const createdAt = new Date().toISOString();
+        const locationValue = location || 'us-central1';
+
+        insertAgent.run(agentId, projectId, locationValue, displayName, 'en', createdAt);
+
+        const agent: Agent = {
+            id: agentId,
+            displayName,
+            projectId,
+            location: locationValue,
+            defaultLanguageCode: 'en',
+            createdAt,
+        };
+
+        res.json({ success: true, data: agent });
+    } catch (error: any) {
+        // Handle unique constraint violation
+        if (error.message.includes('UNIQUE constraint failed')) {
+            return res.status(409).json({ success: false, error: 'Agent with this ID already exists' });
+        }
+        res.status(500).json({ success: false, error: error.message });
     }
-
-    const agent = {
-        id: agentId,
-        displayName,
-        projectId,
-        location: location || 'us-central1',
-        defaultLanguageCode: 'en',
-        createdAt: new Date().toISOString(),
-    };
-
-    agents.set(agentId, agent);
-    res.json({ success: true, data: agent });
 });
 
 // Delete agent configuration
 router.delete('/:id', (req, res) => {
-    if (!agents.has(req.params.id)) {
-        return res.status(404).json({ success: false, error: 'Agent not found' });
+    try {
+        const result = deleteAgentById.run(req.params.id);
+        if (result.changes === 0) {
+            return res.status(404).json({ success: false, error: 'Agent not found' });
+        }
+        res.json({ success: true });
+    } catch (error: any) {
+        res.status(500).json({ success: false, error: error.message });
     }
-    agents.delete(req.params.id);
-    res.json({ success: true });
 });
 
-// Get agent intents (mock data)
+// Get agent intents (mock data - would use Dialogflow API in production)
 router.get('/:id/intents', (req, res) => {
     const mockIntents = [
         { name: 'greeting.hello', displayName: 'Hello Greeting', trainingPhrases: ['hi', 'hello', 'hey'] },
@@ -66,7 +113,7 @@ router.get('/:id/intents', (req, res) => {
     res.json({ success: true, data: mockIntents });
 });
 
-// Get agent pages (mock data)
+// Get agent pages (mock data - would use Dialogflow API in production)
 router.get('/:id/pages', (req, res) => {
     const mockPages = [
         { name: 'Start Page', displayName: 'Start Page' },

@@ -1,0 +1,4 @@
+conversation_id,turn1,turn2,turn3
+test_greeting,Hello,How are you,Goodbye
+test_booking,I want to book a flight,From New York to Los Angeles,Tomorrow morning
+test_order,Check my order status,ORDER-12345,Thanks

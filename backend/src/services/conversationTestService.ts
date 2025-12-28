@@ -211,11 +211,86 @@ export class ConversationTestService {
                 type,
             });
 
-            return response;
+            // Parse and enhance the response based on coverage type
+            return this.parseCoverageResponse(response, type);
         } catch (error: any) {
             console.error('Error calculating coverage:', error);
             throw new Error(`Failed to calculate coverage: ${error.message}`);
         }
+    }
+
+    /**
+     * Parse coverage response to extract meaningful data
+     */
+    private parseCoverageResponse(response: any, type: string): any {
+        const result: any = {
+            coverageType: type,
+            rawResponse: response,
+        };
+
+        if (type === 'INTENT') {
+            const intentCoverage = response.intentCoverage;
+            if (intentCoverage) {
+                const covered = intentCoverage.coverageScore || 0;
+                const intents = intentCoverage.intents || [];
+
+                result.coverageScore = covered;
+                result.totalIntents = intents.length;
+                result.coveredIntents = intents.filter((i: any) => i.covered).length;
+                result.uncoveredIntents = intents.filter((i: any) => !i.covered).length;
+                result.coveragePercent = intents.length > 0
+                    ? ((result.coveredIntents / intents.length) * 100).toFixed(2)
+                    : 0;
+                result.intents = intents.map((intent: any) => ({
+                    name: intent.intent?.name || '',
+                    displayName: intent.intent?.displayName || '',
+                    covered: intent.covered || false,
+                }));
+                result.uncoveredIntentsList = result.intents
+                    .filter((i: any) => !i.covered)
+                    .map((i: any) => i.displayName);
+            }
+        } else if (type === 'PAGE_TRANSITION') {
+            const transitionCoverage = response.transitionRouteGroupCoverage;
+            if (transitionCoverage) {
+                const covered = transitionCoverage.coverageScore || 0;
+                const transitions = transitionCoverage.transitions || [];
+
+                result.coverageScore = covered;
+                result.totalTransitions = transitions.length;
+                result.coveredTransitions = transitions.filter((t: any) => t.covered).length;
+                result.uncoveredTransitions = transitions.filter((t: any) => !t.covered).length;
+                result.coveragePercent = transitions.length > 0
+                    ? ((result.coveredTransitions / transitions.length) * 100).toFixed(2)
+                    : 0;
+                result.transitions = transitions.map((transition: any) => ({
+                    source: transition.transitionRoute?.name || '',
+                    target: transition.transitionRoute?.targetPage || transition.transitionRoute?.targetFlow || '',
+                    covered: transition.covered || false,
+                }));
+            }
+        } else if (type === 'TRANSITION_ROUTE_GROUP') {
+            const routeGroupCoverage = response.routeGroupCoverage;
+            if (routeGroupCoverage) {
+                const covered = routeGroupCoverage.coverageScore || 0;
+                const routeGroups = routeGroupCoverage.coverages || [];
+
+                result.coverageScore = covered;
+                result.totalRouteGroups = routeGroups.length;
+                result.coveredRouteGroups = routeGroups.filter((rg: any) => rg.covered).length;
+                result.uncoveredRouteGroups = routeGroups.filter((rg: any) => !rg.covered).length;
+                result.coveragePercent = routeGroups.length > 0
+                    ? ((result.coveredRouteGroups / routeGroups.length) * 100).toFixed(2)
+                    : 0;
+                result.routeGroups = routeGroups.map((rg: any) => ({
+                    name: rg.routeGroup?.name || '',
+                    displayName: rg.routeGroup?.displayName || '',
+                    covered: rg.covered || false,
+                }));
+            }
+        }
+
+        return result;
     }
 
     /**

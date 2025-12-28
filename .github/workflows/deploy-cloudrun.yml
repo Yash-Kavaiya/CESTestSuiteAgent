@@ -1,0 +1,89 @@
+name: Deploy to Cloud Run
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+env:
+  # Using gen-ai-guru-gdg-pune project (existing service account key available)
+  PROJECT_ID: gen-ai-guru-gdg-pune
+  REGION: us-central1
+  BACKEND_SERVICE: testsuite-backend
+  FRONTEND_SERVICE: testsuite-frontend
+
+jobs:
+  deploy-backend:
+    name: Deploy Backend
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Deploy Backend to Cloud Run
+        working-directory: ./backend
+        run: |
+          gcloud run deploy ${{ env.BACKEND_SERVICE }} \
+            --source . \
+            --region ${{ env.REGION }} \
+            --allow-unauthenticated \
+            --port 8080 \
+            --memory 512Mi \
+            --project ${{ env.PROJECT_ID }}
+
+  deploy-frontend:
+    name: Deploy Frontend
+    runs-on: ubuntu-latest
+    needs: deploy-backend
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Get Backend URL
+        id: backend-url
+        run: |
+          BACKEND_URL=$(gcloud run services describe ${{ env.BACKEND_SERVICE }} \
+            --region ${{ env.REGION }} \
+            --project ${{ env.PROJECT_ID }} \
+            --format 'value(status.url)')
+          echo "url=$BACKEND_URL" >> $GITHUB_OUTPUT
+
+      - name: Set Backend URL in Frontend
+        run: |
+          echo "VITE_API_URL=${{ steps.backend-url.outputs.url }}" > ./frontend/.env.production
+
+      - name: Deploy Frontend to Cloud Run
+        working-directory: ./frontend
+        run: |
+          gcloud run deploy ${{ env.FRONTEND_SERVICE }} \
+            --source . \
+            --region ${{ env.REGION }} \
+            --allow-unauthenticated \
+            --port 8080 \
+            --memory 256Mi \
+            --project ${{ env.PROJECT_ID }}
+
+      - name: Show Deployment URLs
+        run: |
+          echo "🚀 Deployment Complete!"
+          echo "Backend: $(gcloud run services describe ${{ env.BACKEND_SERVICE }} --region ${{ env.REGION }} --project ${{ env.PROJECT_ID }} --format 'value(status.url)')"
+          echo "Frontend: $(gcloud run services describe ${{ env.FRONTEND_SERVICE }} --region ${{ env.REGION }} --project ${{ env.PROJECT_ID }} --format 'value(status.url)')"

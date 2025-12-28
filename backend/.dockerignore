@@ -1,0 +1,15 @@
+node_modules
+npm-debug.log
+dist
+.env
+.env.*
+*.json
+!package.json
+!package-lock.json
+!tsconfig.json
+.git
+.gitignore
+README.md
+*.md
+uploads/*
+data/*

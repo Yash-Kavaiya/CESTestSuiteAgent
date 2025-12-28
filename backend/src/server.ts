@@ -9,6 +9,7 @@ import agentsRoutes from './routes/agents.js';
 import simulatorRoutes from './routes/simulator.js';
 import settingsRoutes from './routes/settings.js';
 import conversationHistoryRoutes from './routes/conversationHistory.js';
+import coverageRoutes from './routes/coverage.js';
 import { db, initDatabase } from './database.js'; // Ensure DB is init
 import simulationRoutes from './routes/simulation.js';
 
@@ -49,6 +50,7 @@ app.use('/api/v1/simulator', simulatorRoutes);
 app.use('/api/v1/simulation', simulationRoutes);
 app.use('/api/v1/settings', settingsRoutes);
 app.use('/api/v1/conversations', conversationHistoryRoutes);
+app.use('/api/v1/coverage', coverageRoutes);
 
 // Analytics routes - using real database queries
 app.get('/api/v1/analytics/dashboard', (req, res) => {

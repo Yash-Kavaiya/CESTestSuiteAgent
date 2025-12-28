@@ -7,6 +7,7 @@ import Coverage from './pages/Coverage';
 import History from './pages/History';
 import Settings from './pages/Settings';
 import Simulator from './pages/Simulator';
+import AgentUrlTest from './pages/AgentUrlTest';
 
 function App() {
     return (
@@ -19,6 +20,7 @@ function App() {
                 <Route path="/history" element={<History />} />
                 <Route path="/settings" element={<Settings />} />
                 <Route path="/simulator" element={<Simulator />} />
+                <Route path="/agent-url-test" element={<AgentUrlTest />} />
             </Routes>
         </Layout>
     );

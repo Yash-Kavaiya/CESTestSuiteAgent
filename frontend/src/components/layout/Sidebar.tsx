@@ -9,6 +9,7 @@ import {
     ChevronLeft,
     Bot,
     MessageSquare,
+    Globe,
 } from 'lucide-react';
 import { useState } from 'react';
 import clsx from 'clsx';
@@ -16,6 +17,7 @@ import clsx from 'clsx';
 const navigation = [
     { name: 'Dashboard', href: '/', icon: LayoutDashboard },
     { name: 'Simulator', href: '/simulator', icon: MessageSquare },
+    { name: 'Agent URL Test', href: '/agent-url-test', icon: Globe },
     { name: 'Bulk Test', href: '/bulk-test', icon: FileSpreadsheet },
     { name: 'Results', href: '/results', icon: ListChecks },
     { name: 'Coverage', href: '/coverage', icon: PieChart },

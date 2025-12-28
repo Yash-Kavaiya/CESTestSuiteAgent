@@ -8,6 +8,7 @@ import resultsRoutes from './routes/results.js';
 import agentsRoutes from './routes/agents.js';
 import simulatorRoutes from './routes/simulator.js';
 import settingsRoutes from './routes/settings.js';
+import agentUrlTestRoutes from './routes/agentUrlTest.js';
 import conversationHistoryRoutes from './routes/conversationHistory.js';
 import coverageRoutes from './routes/coverage.js';
 import { db, initDatabase } from './database.js'; // Ensure DB is init
@@ -48,6 +49,7 @@ app.use('/api/v1/results', resultsRoutes);
 app.use('/api/v1/agents', agentsRoutes);
 app.use('/api/v1/simulator', simulatorRoutes);
 app.use('/api/v1/simulation', simulationRoutes);
+app.use('/api/v1/agent-url-test', agentUrlTestRoutes);
 app.use('/api/v1/settings', settingsRoutes);
 app.use('/api/v1/conversations', conversationHistoryRoutes);
 app.use('/api/v1/coverage', coverageRoutes);

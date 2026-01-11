@@ -103,25 +103,25 @@ router.get('/:conversationId', async (req: Request, res: Response) => {
         const interactions = conversation.interactions?.map((interaction, index) => ({
             turnNumber: index + 1,
             request: {
-                queryText: interaction.request?.query?.text || null,
-                input: interaction.request?.query,
+                queryText: (interaction.request as any)?.query?.text || null,
+                input: (interaction.request as any)?.query,
             },
             response: {
-                responseMessages: interaction.response?.responseMessages?.map((msg) => ({
+                responseMessages: (interaction.response as any)?.responseMessages?.map((msg: any) => ({
                     text: msg.text?.text?.join('\n') || null,
                     payload: msg.payload || null,
                 })),
-                matchedIntent: interaction.response?.matchedIntent ? {
-                    name: interaction.response.matchedIntent.intent,
-                    displayName: interaction.response.matchedIntent.displayName,
+                matchedIntent: (interaction.response as any)?.matchedIntent ? {
+                    name: (interaction.response as any).matchedIntent.intent,
+                    displayName: (interaction.response as any).matchedIntent.displayName,
                 } : null,
-                currentPage: interaction.response?.currentPage ? {
-                    name: interaction.response.currentPage.name,
-                    displayName: interaction.response.currentPage.displayName,
+                currentPage: (interaction.response as any)?.currentPage ? {
+                    name: (interaction.response as any).currentPage.name,
+                    displayName: (interaction.response as any).currentPage.displayName,
                 } : null,
-                currentFlow: interaction.response?.currentFlow ? {
-                    name: interaction.response.currentFlow.name,
-                    displayName: interaction.response.currentFlow.displayName,
+                currentFlow: (interaction.response as any)?.currentFlow ? {
+                    name: (interaction.response as any).currentFlow.name,
+                    displayName: (interaction.response as any).currentFlow.displayName,
                 } : null,
             },
         })) || [];
@@ -226,8 +226,8 @@ router.get('/analytics/coverage', async (req: Request, res: Response) => {
         for (const conv of conversations) {
             if (conv.interactions) {
                 for (const interaction of conv.interactions) {
-                    const intent = interaction.response?.matchedIntent?.displayName;
-                    const page = interaction.response?.currentPage?.displayName;
+                    const intent = (interaction.response as any)?.matchedIntent?.displayName;
+                    const page = (interaction.response as any)?.currentPage?.displayName;
 
                     if (intent) {
                         allIntents.add(intent);

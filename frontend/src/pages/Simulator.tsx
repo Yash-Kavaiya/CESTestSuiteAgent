@@ -10,7 +10,6 @@ import {
     Settings,
     Plus,
     X,
-    Edit2,
     Check,
     ChevronDown,
     ChevronRight,

@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express';
 import multer from 'multer';
 import fs from 'fs';
 import { simulationService } from '../services/simulationService.js';
+// @ts-ignore
 import { Parser } from 'json2csv';
 
 const router = Router();

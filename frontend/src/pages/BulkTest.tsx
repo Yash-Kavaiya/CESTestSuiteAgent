@@ -1,10 +1,9 @@
 import { useState, useEffect } from 'react';
-import { Upload, FileText, Check, AlertCircle, Play, Download, Loader2 } from 'lucide-react';
+import { FileText, Check, AlertCircle, Play, Download, Loader2 } from 'lucide-react';
 import Card, { CardHeader, CardContent } from '../components/ui/Card';
 import Button from '../components/ui/Button';
 import ProgressBar from '../components/ui/ProgressBar';
 import FileUpload from '../components/ui/FileUpload';
-import { testCasesApi } from '../api/testCases';
 
 interface SimulationJob {
     id: string;
@@ -34,7 +33,7 @@ export default function BulkTest() {
         if (jobId && job?.status !== 'completed' && job?.status !== 'failed') {
             interval = setInterval(async () => {
                 try {
-                    const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3001'}/api/v1/simulation/${jobId}`);
+                    const response = await fetch(`${(import.meta as any).env.VITE_API_URL || 'http://localhost:3001'}/api/v1/simulation/${jobId}`);
                     const data = await response.json();
                     if (data.success) {
                         setJob(data.data);
@@ -68,7 +67,7 @@ export default function BulkTest() {
         formData.append('file', file);
 
         try {
-            const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3001'}/api/v1/simulation/upload`, {
+            const response = await fetch(`${(import.meta as any).env.VITE_API_URL || 'http://localhost:3001'}/api/v1/simulation/upload`, {
                 method: 'POST',
                 body: formData,
             });

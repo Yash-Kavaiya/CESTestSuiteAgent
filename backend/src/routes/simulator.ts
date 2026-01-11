@@ -4,6 +4,9 @@ import { v4 as uuidv4 } from 'uuid';
 
 const router = Router();
 
+// @ts-ignore
+import { Parser } from 'json2csv';
+
 // Detect intent - real-time simulator endpoint
 router.post('/detect-intent', async (req: Request, res: Response) => {
     try {
@@ -72,10 +75,10 @@ router.post('/detect-intent', async (req: Request, res: Response) => {
                 : {},
             currentPage: queryResult?.currentPage?.displayName || null,
             currentFlow: queryResult?.currentFlow?.displayName || null,
-            sentiment: queryResult?.sentimentAnalysisResult?.sentiment
+            sentiment: (queryResult as any)?.sentimentAnalysisResult?.sentiment
                 ? {
-                    score: queryResult.sentimentAnalysisResult.sentiment.score || 0,
-                    magnitude: queryResult.sentimentAnalysisResult.sentiment.magnitude || 0,
+                    score: (queryResult as any).sentimentAnalysisResult.sentiment.score || 0,
+                    magnitude: (queryResult as any).sentimentAnalysisResult.sentiment.magnitude || 0,
                 }
                 : null,
             diagnosticInfo: queryResult?.diagnosticInfo || null,

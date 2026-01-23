@@ -1,7 +1,9 @@
 import axios from 'axios';
 import { Agent } from '../types';
+import { createLogger } from '../utils/logger';
 
 const API_BASE = '/api/v1/conversations';
+const logger = createLogger('dashboardApi');
 
 export interface MatchTypeCounts {
     intentCount: number;
@@ -74,14 +76,43 @@ export const dashboardApi = {
         data?: DashboardMetrics;
         error?: string;
     }> {
-        const params = new URLSearchParams({
-            projectId: agent.projectId,
-            location: agent.location,
-            agentId: agent.id,
-            limit: limit.toString(),
-        });
+        try {
+            // Clamp limit between 1 and 1000
+            const validLimit = Math.max(1, Math.min(limit, 1000));
 
-        const response = await axios.get(`${API_BASE}/analytics/dashboard?${params.toString()}`);
-        return response.data;
+            logger.debug('Fetching dashboard metrics', {
+                agentId: agent.id,
+                projectId: agent.projectId,
+                limit: validLimit,
+            });
+
+            const response = await axios.get(`${API_BASE}/analytics/dashboard`, {
+                params: {
+                    projectId: agent.projectId,
+                    location: agent.location,
+                    agentId: agent.id,
+                    limit: validLimit,
+                },
+            });
+
+            logger.info('Dashboard metrics fetched successfully', {
+                agentId: agent.id,
+                totalConversations: response.data.data?.totalConversations,
+            });
+
+            return response.data;
+        } catch (error) {
+            const errorMessage = error instanceof Error ? error.message : 'Failed to fetch dashboard metrics';
+
+            logger.error('Failed to fetch dashboard metrics', {
+                agentId: agent.id,
+                error: errorMessage,
+            });
+
+            return {
+                success: false,
+                error: errorMessage,
+            };
+        }
     },
 };

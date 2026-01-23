@@ -1,6 +1,7 @@
 import express from 'express';
 import { simulationService } from '../services/simulationService.js';
 import { db } from '../database.js';
+import { createErrorResponse, createSuccessResponse, ErrorCode, sanitizeErrorMessage } from '../utils/errors.js';
 
 const router = express.Router();
 
@@ -8,9 +9,10 @@ const router = express.Router();
 router.get('/', (req, res) => {
     try {
         const runs = simulationService.getAllJobs();
-        res.json(runs);
+        res.json(createSuccessResponse(runs));
     } catch (error: any) {
-        res.status(500).json({ error: error.message });
+        const message = sanitizeErrorMessage(error.message);
+        res.status(500).json(createErrorResponse(ErrorCode.INTERNAL_ERROR, message));
     }
 });
 
@@ -25,8 +27,10 @@ router.get('/', (req, res) => {
 
 router.post('/batch', async (req, res) => {
     // Stub for future structured batch implementation
-    // For now we rely on the /upload endpoint for CSVs
-    res.status(501).json({ error: "Use /api/v1/simulation/upload for now" });
+    res.status(501).json(createErrorResponse(
+        ErrorCode.SERVICE_UNAVAILABLE,
+        'Batch endpoint is not yet implemented. Please use /api/v1/simulation/upload for CSV uploads.'
+    ));
 });
 
 // Get run status
@@ -34,11 +38,12 @@ router.get('/:runId', (req, res) => {
     try {
         const job = simulationService.getJob(req.params.runId);
         if (!job) {
-            return res.status(404).json({ error: 'Run not found' });
+            return res.status(404).json(createErrorResponse(ErrorCode.RUN_NOT_FOUND));
         }
-        res.json(job);
+        res.json(createSuccessResponse(job));
     } catch (error: any) {
-        res.status(500).json({ error: error.message });
+        const message = sanitizeErrorMessage(error.message);
+        res.status(500).json(createErrorResponse(ErrorCode.INTERNAL_ERROR, message));
     }
 });
 
@@ -48,7 +53,7 @@ router.get('/:runId/results', (req, res) => {
         const runId = req.params.runId;
         const job = simulationService.getJob(runId);
         if (!job) {
-            return res.status(404).json({ error: 'Run not found' });
+            return res.status(404).json(createErrorResponse(ErrorCode.RUN_NOT_FOUND));
         }
 
         // Fetch detailed test_results from DB
@@ -87,12 +92,10 @@ router.get('/:runId/results', (req, res) => {
             };
         });
 
-        res.json({
-            run: job,
-            results: results
-        });
+        res.json(createSuccessResponse({ run: job, results }));
     } catch (error: any) {
-        res.status(500).json({ error: error.message });
+        const message = sanitizeErrorMessage(error.message);
+        res.status(500).json(createErrorResponse(ErrorCode.INTERNAL_ERROR, message));
     }
 });
 
@@ -102,7 +105,7 @@ router.get('/:runId/coverage', async (req, res) => {
         const runId = req.params.runId;
         const job = simulationService.getJob(runId);
         if (!job) {
-            return res.status(404).json({ error: 'Run not found' });
+            return res.status(404).json(createErrorResponse(ErrorCode.RUN_NOT_FOUND));
         }
 
         // Get all results for this run
@@ -131,20 +134,20 @@ router.get('/:runId/coverage', async (req, res) => {
         const totalIntents = 50;
         const totalPages = 20;
 
-        res.json({
+        res.json(createSuccessResponse({
             intentCoverage: Math.round((uniqueIntents.size / totalIntents) * 100),
             pageCoverage: Math.round((uniquePages.size / totalPages) * 100),
-            transitionCoverage: 0, // Placeholder
+            transitionCoverage: 0,
             testedIntents: uniqueIntents.size,
-            totalIntents: totalIntents,
+            totalIntents,
             testedPages: uniquePages.size,
-            totalPages: totalPages,
-            untestedIntents: [], // TODO: Diff with full list
-            untestedPages: []
-        });
-
+            totalPages,
+            untestedIntents: [],
+            untestedPages: [],
+        }));
     } catch (error: any) {
-        res.status(500).json({ error: error.message });
+        const message = sanitizeErrorMessage(error.message);
+        res.status(500).json(createErrorResponse(ErrorCode.INTERNAL_ERROR, message));
     }
 });
 

@@ -1,10 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import {
     CheckCircle,
-    XCircle,
-    Clock,
     Zap,
-    TrendingUp,
     FileSpreadsheet,
     ArrowRight,
     AlertTriangle,
@@ -16,6 +13,7 @@ import {
     Timer,
     Repeat,
     Server,
+    RefreshCw,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import Card, { CardHeader, CardContent } from '../components/ui/Card';
@@ -25,6 +23,7 @@ import { useAgentStore } from '../store/useAgentStore';
 import clsx from 'clsx';
 import { format } from 'date-fns';
 import { dashboardApi, DashboardMetrics } from '../api/dashboard';
+import { extractErrorMessage } from '../utils/errors';
 
 function formatDuration(seconds: number): string {
     if (seconds < 60) return `${seconds.toFixed(0)}s`;
@@ -38,31 +37,31 @@ export default function Dashboard() {
     const [error, setError] = useState<string | null>(null);
     const [metrics, setMetrics] = useState<DashboardMetrics | null>(null);
 
-    useEffect(() => {
+    const loadMetrics = useCallback(async () => {
         if (!selectedAgent) {
             setMetrics(null);
             return;
         }
 
-        const loadMetrics = async () => {
-            setIsLoading(true);
-            setError(null);
-            try {
-                const response = await dashboardApi.getDashboardMetrics(selectedAgent);
-                if (response.success && response.data) {
-                    setMetrics(response.data);
-                } else {
-                    setError(response.error || 'Failed to load metrics');
-                }
-            } catch (err: any) {
-                setError(err.message || 'Failed to load metrics');
-            } finally {
-                setIsLoading(false);
+        setIsLoading(true);
+        setError(null);
+        try {
+            const response = await dashboardApi.getDashboardMetrics(selectedAgent);
+            if (response.success && response.data) {
+                setMetrics(response.data);
+            } else {
+                setError(response.error || 'Unable to load analytics data. Please try again.');
             }
-        };
-
-        loadMetrics();
+        } catch (err) {
+            setError(extractErrorMessage(err));
+        } finally {
+            setIsLoading(false);
+        }
     }, [selectedAgent]);
+
+    useEffect(() => {
+        loadMetrics();
+    }, [loadMetrics]);
 
     // Primary stat cards (top row)
     const primaryStats = [
@@ -189,12 +188,22 @@ export default function Dashboard() {
             {/* Error State */}
             {error && !isLoading && (
                 <Card className="p-6 border-danger-500/30 bg-danger-500/5">
-                    <div className="flex items-center gap-3">
-                        <AlertTriangle className="w-6 h-6 text-danger-400" />
-                        <div>
-                            <p className="text-danger-400 font-medium">Error loading data</p>
-                            <p className="text-dark-400 text-sm">{error}</p>
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                            <AlertTriangle className="w-6 h-6 text-danger-400" />
+                            <div>
+                                <p className="text-danger-400 font-medium">Unable to load analytics</p>
+                                <p className="text-dark-400 text-sm">{error}</p>
+                            </div>
                         </div>
+                        <Button
+                            variant="secondary"
+                            size="sm"
+                            onClick={loadMetrics}
+                            leftIcon={<RefreshCw className="w-4 h-4" />}
+                        >
+                            Retry
+                        </Button>
                     </div>
                 </Card>
             )}

@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { Request, Response, NextFunction } from 'express';
+import { createErrorResponse, ErrorCode } from './errors.js';
 
 // ============================================
 // Agent Schemas
@@ -90,27 +91,60 @@ export function validateRequest<T extends z.ZodType>(schema: T) {
 
             if (!result.success) {
                 const errors = result.error.errors.map(err => ({
-                    field: err.path.join('.'),
-                    message: err.message,
+                    field: err.path.join('.') || 'unknown',
+                    message: formatValidationMessage(err),
                 }));
 
-                return res.status(400).json({
-                    success: false,
-                    error: 'Validation failed',
-                    details: errors,
-                });
+                return res.status(400).json(
+                    createErrorResponse(ErrorCode.VALIDATION_FAILED, undefined, errors)
+                );
             }
 
             // Replace body with parsed/validated data
             req.body = result.data;
             next();
         } catch (error: any) {
-            return res.status(400).json({
-                success: false,
-                error: `Validation error: ${error.message}`,
-            });
+            return res.status(400).json(
+                createErrorResponse(ErrorCode.INVALID_INPUT, 'Failed to validate request data.')
+            );
         }
     };
+}
+
+/**
+ * Formats validation error messages to be more user-friendly
+ */
+function formatValidationMessage(error: z.ZodIssue): string {
+    const field = error.path.join('.') || 'field';
+
+    switch (error.code) {
+        case 'invalid_type':
+            if (error.received === 'undefined') {
+                return `${capitalize(field)} is required`;
+            }
+            return `${capitalize(field)} must be a ${error.expected}`;
+        case 'too_small':
+            if (error.type === 'string') {
+                return `${capitalize(field)} must be at least ${(error as any).minimum} characters`;
+            }
+            return `${capitalize(field)} must be at least ${(error as any).minimum}`;
+        case 'too_big':
+            if (error.type === 'string') {
+                return `${capitalize(field)} must be at most ${(error as any).maximum} characters`;
+            }
+            return `${capitalize(field)} must be at most ${(error as any).maximum}`;
+        case 'invalid_string':
+            if ((error as any).validation === 'email') {
+                return `${capitalize(field)} must be a valid email address`;
+            }
+            return `${capitalize(field)} format is invalid`;
+        default:
+            return error.message || `${capitalize(field)} is invalid`;
+    }
+}
+
+function capitalize(str: string): string {
+    return str.charAt(0).toUpperCase() + str.slice(1).replace(/([A-Z])/g, ' $1').trim();
 }
 
 // ============================================
@@ -129,24 +163,21 @@ export function validateQuery<T extends z.ZodType>(schema: T) {
 
             if (!result.success) {
                 const errors = result.error.errors.map(err => ({
-                    field: err.path.join('.'),
-                    message: err.message,
+                    field: err.path.join('.') || 'unknown',
+                    message: formatValidationMessage(err),
                 }));
 
-                return res.status(400).json({
-                    success: false,
-                    error: 'Query validation failed',
-                    details: errors,
-                });
+                return res.status(400).json(
+                    createErrorResponse(ErrorCode.VALIDATION_FAILED, 'Invalid query parameters', errors)
+                );
             }
 
             req.query = result.data as any;
             next();
         } catch (error: any) {
-            return res.status(400).json({
-                success: false,
-                error: `Query validation error: ${error.message}`,
-            });
+            return res.status(400).json(
+                createErrorResponse(ErrorCode.INVALID_INPUT, 'Failed to validate query parameters.')
+            );
         }
     };
 }

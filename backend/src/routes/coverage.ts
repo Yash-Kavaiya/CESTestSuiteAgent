@@ -1,20 +1,27 @@
 import { Router } from 'express';
 import { conversationTestService } from '../services/conversationTestService.js';
-import { db } from '../database.js';
 
 const router = Router();
-
-// Prepared statement to get agent details
-const getAgentById = db.prepare('SELECT * FROM agents WHERE id = ?');
 
 /**
  * Calculate coverage for an agent
  * GET /api/v1/coverage/:agentId?type=INTENT|PAGE_TRANSITION|TRANSITION_ROUTE_GROUP
+ *
+ * Note: Agent validation is done by the Dialogflow CX API itself.
+ * The agentId is used to construct the full agent path with projectId and location from config.
  */
 router.get('/:agentId', async (req, res) => {
     try {
         const { agentId } = req.params;
         const { type = 'INTENT' } = req.query;
+
+        // Validate agentId format
+        if (!agentId || agentId.trim() === '') {
+            return res.status(400).json({
+                success: false,
+                error: 'Agent ID is required',
+            });
+        }
 
         // Validate coverage type
         const validTypes = ['INTENT', 'PAGE_TRANSITION', 'TRANSITION_ROUTE_GROUP'];
@@ -22,15 +29,6 @@ router.get('/:agentId', async (req, res) => {
             return res.status(400).json({
                 success: false,
                 error: `Invalid coverage type. Must be one of: ${validTypes.join(', ')}`,
-            });
-        }
-
-        // Verify agent exists
-        const agent = getAgentById.get(agentId);
-        if (!agent) {
-            return res.status(404).json({
-                success: false,
-                error: 'Agent not found',
             });
         }
 
@@ -60,17 +58,18 @@ router.get('/:agentId', async (req, res) => {
 /**
  * Calculate all coverage types for an agent
  * GET /api/v1/coverage/:agentId/all
+ *
+ * Note: Agent validation is done by the Dialogflow CX API itself.
  */
 router.get('/:agentId/all', async (req, res) => {
     try {
         const { agentId } = req.params;
 
-        // Verify agent exists
-        const agent = getAgentById.get(agentId);
-        if (!agent) {
-            return res.status(404).json({
+        // Validate agentId format
+        if (!agentId || agentId.trim() === '') {
+            return res.status(400).json({
                 success: false,
-                error: 'Agent not found',
+                error: 'Agent ID is required',
             });
         }
 

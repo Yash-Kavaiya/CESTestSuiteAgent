@@ -11,21 +11,22 @@ import settingsRoutes from './routes/settings.js';
 import agentUrlTestRoutes from './routes/agentUrlTest.js';
 import conversationHistoryRoutes from './routes/conversationHistory.js';
 import coverageRoutes from './routes/coverage.js';
-import { db, initDatabase } from './database.js'; // Ensure DB is init
+import { db, initDatabase } from './database.js';
 import simulationRoutes from './routes/simulation.js';
+import { createErrorResponse, ErrorCode, sanitizeErrorMessage } from './utils/errors.js';
 
 const app = express();
 
 // Rate limiting middleware - 100 requests per 15 minutes
 const limiter = rateLimit({
-    windowMs: 15 * 60 * 1000, // 15 minutes
-    max: 100, // Limit each IP to 100 requests per windowMs
-    message: {
-        success: false,
-        error: 'Too many requests, please try again later.',
-    },
-    standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
-    legacyHeaders: false, // Disable the `X-RateLimit-*` headers
+    windowMs: 15 * 60 * 1000,
+    max: 100,
+    message: createErrorResponse(
+        ErrorCode.RATE_LIMITED,
+        'Too many requests. Please wait 15 minutes before trying again.'
+    ),
+    standardHeaders: true,
+    legacyHeaders: false,
 });
 
 // Middleware
@@ -126,11 +127,12 @@ app.get('/api/v1/analytics/dashboard', (req, res) => {
             },
         });
     } catch (error: any) {
-        res.status(500).json({ success: false, error: error.message });
+        const message = sanitizeErrorMessage(error.message);
+        res.status(500).json(createErrorResponse(ErrorCode.DATABASE_ERROR, message));
     }
 });
 
-app.get('/api/v1/analytics/coverage', (req, res) => {
+app.get('/api/v1/analytics/coverage', (_req, res) => {
     try {
         // Get unique intents from test results
         const testedIntents = db.prepare(`
@@ -153,11 +155,12 @@ app.get('/api/v1/analytics/coverage', (req, res) => {
             },
         });
     } catch (error: any) {
-        res.status(500).json({ success: false, error: error.message });
+        const message = sanitizeErrorMessage(error.message);
+        res.status(500).json(createErrorResponse(ErrorCode.DATABASE_ERROR, message));
     }
 });
 
-app.get('/api/v1/analytics/trends', (req, res) => {
+app.get('/api/v1/analytics/trends', (_req, res) => {
     try {
         // Get trends from last 7 days
         const trends = db.prepare(`
@@ -205,25 +208,29 @@ app.get('/api/v1/analytics/trends', (req, res) => {
             })),
         });
     } catch (error: any) {
-        res.status(500).json({ success: false, error: error.message });
+        const message = sanitizeErrorMessage(error.message);
+        res.status(500).json(createErrorResponse(ErrorCode.DATABASE_ERROR, message));
     }
 });
 
-// Error handler
-app.use((err: Error, req: express.Request, res: express.Response, next: express.NextFunction) => {
-    console.error('Error:', err);
-    res.status(500).json({
-        success: false,
-        error: config.nodeEnv === 'development' ? err.message : 'Internal server error',
-    });
+// Global error handler
+app.use((err: Error, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
+    console.error('Error:', err.message);
+
+    // In development, show detailed errors; in production, sanitize them
+    const errorMessage = config.nodeEnv === 'development'
+        ? err.message
+        : sanitizeErrorMessage(err.message, ErrorCode.INTERNAL_ERROR);
+
+    res.status(500).json(createErrorResponse(ErrorCode.INTERNAL_ERROR, errorMessage));
 });
 
 // 404 handler
-app.use((req, res) => {
-    res.status(404).json({
-        success: false,
-        error: 'Not found',
-    });
+app.use((_req, res) => {
+    res.status(404).json(createErrorResponse(
+        ErrorCode.RESOURCE_NOT_FOUND,
+        'The requested endpoint does not exist. Please check the URL and try again.'
+    ));
 });
 
 // Start server

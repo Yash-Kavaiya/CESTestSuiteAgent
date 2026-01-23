@@ -540,7 +540,7 @@ export default function Results() {
                         {/* Conversation Timeline */}
                         <div className="space-y-3">
                             <h4 className="text-sm font-medium text-dark-300">Conversation Timeline</h4>
-                            {selectedResult.conversationTurns.map((turn) => (
+                            {selectedResult.conversationTurns.map((turn, index) => (
                                 <div
                                     key={turn.turnNumber}
                                     className={clsx(
@@ -551,7 +551,7 @@ export default function Results() {
                                     )}
                                 >
                                     <button
-                                        onClick={() => toggleTurn(turn.turnNumber)}
+                                        onClick={() => toggleTurn(turn.turnNumber || index + 1)}
                                         className="w-full flex items-center gap-3 p-3 hover:bg-dark-700/50 transition-colors"
                                     >
                                         <div
@@ -560,7 +560,7 @@ export default function Results() {
                                                 turn.passed ? 'bg-success-500/20 text-success-500' : 'bg-danger-500/20 text-danger-500'
                                             )}
                                         >
-                                            {turn.turnNumber}
+                                            {turn.turnNumber || index + 1}
                                         </div>
                                         <div className="flex-1 text-left">
                                             <p className="text-sm text-dark-200 truncate">"{turn.userInput}"</p>
@@ -570,7 +570,7 @@ export default function Results() {
                                                         Intent: <span className="text-dark-400">{turn.expectedIntent}</span>
                                                     </span>
                                                 )}
-                                                {turn.differences.length > 0 && (
+                                                {turn.differences && turn.differences.length > 0 && (
                                                     <span className="text-xs text-danger-400">
                                                         {turn.differences.length} diff{turn.differences.length > 1 ? 's' : ''}
                                                     </span>
@@ -580,12 +580,12 @@ export default function Results() {
                                         <ChevronDown
                                             className={clsx(
                                                 'w-4 h-4 text-dark-400 transition-transform',
-                                                expandedTurns.has(turn.turnNumber) && 'rotate-180'
+                                                expandedTurns.has(turn.turnNumber || index + 1) && 'rotate-180'
                                             )}
                                         />
                                     </button>
 
-                                    {expandedTurns.has(turn.turnNumber) && (
+                                    {expandedTurns.has(turn.turnNumber || index + 1) && (
                                         <div className="border-t border-dark-600 p-4 space-y-4">
                                             <div className="grid grid-cols-2 gap-4">
                                                 <div>
@@ -609,7 +609,7 @@ export default function Results() {
                                                 </div>
                                             </div>
 
-                                            {turn.differences.length > 0 && (
+                                            {turn.differences && turn.differences.length > 0 && (
                                                 <div>
                                                     <p className="text-xs text-dark-500 mb-2">Differences Detected</p>
                                                     <div className="space-y-2">

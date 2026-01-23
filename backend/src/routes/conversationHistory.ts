@@ -192,6 +192,243 @@ router.delete('/:conversationId', async (req: Request, res: Response) => {
     }
 });
 
+// Get dashboard metrics from conversations
+router.get('/analytics/dashboard', async (req: Request, res: Response) => {
+    try {
+        const { projectId, location, agentId, limit = 50 } = req.query;
+
+        if (!projectId || !location || !agentId) {
+            return res.status(400).json({
+                success: false,
+                error: 'Missing required query parameters: projectId, location, agentId',
+            });
+        }
+
+        const client = new ConversationHistoryClient({
+            apiEndpoint: getApiEndpoint(location as string),
+            keyFilename: config.googleCloud.credentialsPath || undefined,
+        });
+
+        const parent = `projects/${projectId}/locations/${location}/agents/${agentId}`;
+
+        // Fetch conversations
+        const [conversations] = await client.listConversations({
+            parent,
+            pageSize: parseInt(limit as string, 10),
+        });
+
+        // Initialize aggregated metrics
+        let totalInteractions = 0;
+        let totalMatchConfidence = 0;
+        let matchConfidenceCount = 0;
+        let completedConversations = 0;
+        let handoffConversations = 0;
+        let totalDurationSeconds = 0;
+        let durationCount = 0;
+        let maxWebhookLatencyMs = 0;
+
+        const matchTypeCounts = {
+            intentCount: 0,
+            directIntentCount: 0,
+            parameterFillingCount: 0,
+            noMatchCount: 0,
+            noInputCount: 0,
+            eventCount: 0,
+        };
+        const missingTransitions: Array<{
+            conversationId: string;
+            intentDisplayName: string;
+            score: number;
+        }> = [];
+        const stepMetricsAggregated: Record<string, { totalLatencyMs: number; count: number }> = {};
+        const recentConversations: any[] = [];
+        const intentCounts: Record<string, number> = {};
+        const pageCounts: Record<string, number> = {};
+
+        for (const conv of conversations) {
+            const convId = conv.name?.split('/').pop() || '';
+            const convMetrics = conv.metrics;
+
+            // Aggregate metrics from conversation.metrics
+            if (convMetrics) {
+                totalInteractions += convMetrics.interactionCount || 0;
+
+                if (convMetrics.averageMatchConfidence) {
+                    totalMatchConfidence += convMetrics.averageMatchConfidence;
+                    matchConfidenceCount++;
+                }
+
+                // Track completion and handoff
+                if (convMetrics.hasEndInteraction) {
+                    completedConversations++;
+                }
+                if (convMetrics.hasLiveAgentHandoff) {
+                    handoffConversations++;
+                }
+
+                // Track max webhook latency
+                if (convMetrics.maxWebhookLatency?.seconds) {
+                    const webhookLatencyMs = Number(convMetrics.maxWebhookLatency.seconds) * 1000 +
+                        (convMetrics.maxWebhookLatency.nanos || 0) / 1e6;
+                    if (webhookLatencyMs > maxWebhookLatencyMs) {
+                        maxWebhookLatencyMs = webhookLatencyMs;
+                    }
+                }
+
+                // Aggregate match type counts
+                const mtc = convMetrics.matchTypeCount;
+                if (mtc) {
+                    matchTypeCounts.intentCount += mtc.intentCount || 0;
+                    matchTypeCounts.directIntentCount += mtc.directIntentCount || 0;
+                    matchTypeCounts.parameterFillingCount += mtc.parameterFillingCount || 0;
+                    matchTypeCounts.noMatchCount += mtc.noMatchCount || 0;
+                    matchTypeCounts.noInputCount += mtc.noInputCount || 0;
+                    matchTypeCounts.eventCount += mtc.eventCount || 0;
+                }
+            }
+
+            // Track duration
+            if (conv.duration?.seconds) {
+                totalDurationSeconds += Number(conv.duration.seconds);
+                durationCount++;
+            }
+
+            // Get intents and pages from conversation
+            if (conv.intents) {
+                for (const intent of conv.intents) {
+                    const intentName = intent.displayName || 'Unknown';
+                    intentCounts[intentName] = (intentCounts[intentName] || 0) + 1;
+                }
+            }
+            if (conv.pages) {
+                for (const page of conv.pages) {
+                    const pageName = page.displayName || 'Unknown';
+                    pageCounts[pageName] = (pageCounts[pageName] || 0) + 1;
+                }
+            }
+
+            // Process interactions for missing transitions and step metrics
+            if (conv.interactions) {
+                for (const interaction of conv.interactions) {
+                    // Collect missing transitions
+                    const mt = (interaction as any).missingTransition;
+                    if (mt && mt.intentDisplayName) {
+                        missingTransitions.push({
+                            conversationId: convId,
+                            intentDisplayName: mt.intentDisplayName,
+                            score: mt.score || 0,
+                        });
+                    }
+
+                    // Aggregate step metrics
+                    const stepMetrics = (interaction as any).stepMetrics;
+                    if (stepMetrics && Array.isArray(stepMetrics)) {
+                        for (const step of stepMetrics) {
+                            const stepName = step.name || 'unknown';
+                            const latencyMs = step.latency?.seconds
+                                ? Number(step.latency.seconds) * 1000 + (step.latency.nanos || 0) / 1e6
+                                : 0;
+
+                            if (!stepMetricsAggregated[stepName]) {
+                                stepMetricsAggregated[stepName] = { totalLatencyMs: 0, count: 0 };
+                            }
+                            stepMetricsAggregated[stepName].totalLatencyMs += latencyMs;
+                            stepMetricsAggregated[stepName].count++;
+                        }
+                    }
+                }
+            }
+
+            // Add to recent conversations (limit to 10)
+            if (recentConversations.length < 10) {
+                recentConversations.push({
+                    id: convId,
+                    type: conv.type,
+                    startTime: conv.startTime?.seconds
+                        ? new Date(Number(conv.startTime.seconds) * 1000).toISOString()
+                        : null,
+                    duration: conv.duration?.seconds ? `${conv.duration.seconds}s` : null,
+                    durationSeconds: conv.duration?.seconds ? Number(conv.duration.seconds) : 0,
+                    interactionCount: convMetrics?.interactionCount || 0,
+                    avgMatchConfidence: convMetrics?.averageMatchConfidence || 0,
+                    hasEndInteraction: convMetrics?.hasEndInteraction || false,
+                    hasLiveAgentHandoff: convMetrics?.hasLiveAgentHandoff || false,
+                });
+            }
+        }
+
+        // Calculate averages and rates
+        const avgMatchConfidence = matchConfidenceCount > 0
+            ? totalMatchConfidence / matchConfidenceCount
+            : 0;
+        const completionRate = conversations.length > 0
+            ? completedConversations / conversations.length
+            : 0;
+        const handoffRate = conversations.length > 0
+            ? handoffConversations / conversations.length
+            : 0;
+        const avgDurationSeconds = durationCount > 0
+            ? totalDurationSeconds / durationCount
+            : 0;
+        const avgTurnsPerConversation = conversations.length > 0
+            ? totalInteractions / conversations.length
+            : 0;
+
+        // Format step metrics
+        const stepMetricsSummary = Object.entries(stepMetricsAggregated).map(([name, data]) => ({
+            name,
+            avgLatencyMs: data.count > 0 ? data.totalLatencyMs / data.count : 0,
+            totalCalls: data.count,
+        }));
+
+        // Sort and get top intents/pages
+        const topIntents = Object.entries(intentCounts)
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, 10)
+            .map(([name, count]) => ({ name, count }));
+        const topPages = Object.entries(pageCounts)
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, 10)
+            .map(([name, count]) => ({ name, count }));
+
+        // Sort missing transitions by score (highest first)
+        missingTransitions.sort((a, b) => b.score - a.score);
+
+        return res.json({
+            success: true,
+            data: {
+                // Core metrics
+                totalConversations: conversations.length,
+                totalInteractions,
+                avgMatchConfidence,
+                matchTypeCounts,
+
+                // New KPIs
+                completionRate,
+                handoffRate,
+                avgDurationSeconds,
+                avgTurnsPerConversation,
+                maxWebhookLatencyMs,
+
+                // Top items
+                topIntents,
+                topPages,
+
+                // Detailed data
+                missingTransitions: missingTransitions.slice(0, 20),
+                stepMetrics: stepMetricsSummary,
+                recentConversations,
+            },
+        });
+    } catch (error: any) {
+        console.error('Dashboard analytics error:', error.message);
+        return res.status(500).json({
+            success: false,
+            error: error.message || 'Failed to get dashboard analytics',
+        });
+    }
+});
+
 // Get aggregated coverage data from recent conversations
 router.get('/analytics/coverage', async (req: Request, res: Response) => {
     try {
@@ -263,3 +500,4 @@ router.get('/analytics/coverage', async (req: Request, res: Response) => {
 });
 
 export default router;
+

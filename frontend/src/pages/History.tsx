@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
     Calendar,
     CheckCircle,
@@ -16,6 +17,7 @@ import { runsApi } from '../api/runs';
 
 
 const History = () => {
+    const navigate = useNavigate();
     const [runs, setRuns] = useState<TestRun[]>([]);
     const [statusFilter, setStatusFilter] = useState<'all' | 'completed' | 'failed'>('all');
     const [loading, setLoading] = useState(true);
@@ -109,6 +111,7 @@ const History = () => {
                             {filteredRuns.map((run) => (
                                 <div
                                     key={run.id}
+                                    onClick={() => navigate(`/results?runId=${run.id}`)}
                                     className="flex items-center gap-4 p-4 bg-dark-700/50 rounded-lg hover:bg-dark-700 transition-colors cursor-pointer group"
                                 >
                                     {/* Status Icon */}

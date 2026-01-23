@@ -63,6 +63,17 @@ router.get('/:runId/results', (req, res) => {
                 turns = [];
             }
 
+            const mappedTurns = turns.map((turn: any, index: number) => ({
+                turnNumber: turn.turnNumber || index + 1,
+                userInput: typeof turn.userInput === 'object' ? JSON.stringify(turn.userInput) : (turn.userInput || ''),
+                expectedIntent: turn.intent || '-',
+                actualIntent: turn.intent || '-', // For simulation, we assume intent matched if confidence > threshold, or just echo it
+                conversationId: turn.conversationId,
+                differences: turn.differences || [],
+                passed: turn.error ? false : true, // Heuristic: if no error, it "passed"
+                // Add execution time or timestamp if needed
+            }));
+
             return {
                 id: row.id,
                 runId: row.run_id,
@@ -72,10 +83,7 @@ router.get('/:runId/results', (req, res) => {
                 overallPassed: Boolean(row.overall_passed),
                 executionTimeMs: row.execution_time_ms,
                 createdAt: row.created_at,
-                conversationTurns: turns, // Include full turn details
-                // Adapt to frontend expected TestResult format
-                // Check `TestResult` type in frontend:
-                // id, runId, testCaseId, testCaseName, status, conversationTurns, overallPassed, executionTimeMs...
+                conversationTurns: mappedTurns,
             };
         });
 

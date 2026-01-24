@@ -11,6 +11,7 @@ import settingsRoutes from './routes/settings.js';
 import agentUrlTestRoutes from './routes/agentUrlTest.js';
 import conversationHistoryRoutes from './routes/conversationHistory.js';
 import coverageRoutes from './routes/coverage.js';
+import aiAnalysisRoutes from './routes/aiAnalysis.js';
 import { db, initDatabase } from './database.js';
 import simulationRoutes from './routes/simulation.js';
 import { createErrorResponse, ErrorCode, sanitizeErrorMessage } from './utils/errors.js';
@@ -54,6 +55,7 @@ app.use('/api/v1/agent-url-test', agentUrlTestRoutes);
 app.use('/api/v1/settings', settingsRoutes);
 app.use('/api/v1/conversations', conversationHistoryRoutes);
 app.use('/api/v1/coverage', coverageRoutes);
+app.use('/api/v1/ai-analysis', aiAnalysisRoutes);
 
 // Analytics routes - using real database queries
 app.get('/api/v1/analytics/dashboard', (req, res) => {

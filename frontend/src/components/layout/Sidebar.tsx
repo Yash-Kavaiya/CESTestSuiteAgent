@@ -10,6 +10,7 @@ import {
     Bot,
     MessageSquare,
     Globe,
+    Brain,
 } from 'lucide-react';
 import { useState } from 'react';
 import clsx from 'clsx';
@@ -22,6 +23,7 @@ const navigation = [
     { name: 'Results', href: '/results', icon: ListChecks },
     { name: 'Coverage', href: '/coverage', icon: PieChart },
     { name: 'History', href: '/history', icon: History },
+    { name: 'AI Analysis', href: '/ai-analysis', icon: Brain },
 ];
 
 const bottomNav = [

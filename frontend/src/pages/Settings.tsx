@@ -11,6 +11,9 @@ import {
     Loader2,
     CheckCircle,
     AlertCircle,
+    Brain,
+    Eye,
+    EyeOff,
 } from 'lucide-react';
 import Card, { CardHeader, CardContent } from '../components/ui/Card';
 import Button from '../components/ui/Button';
@@ -29,9 +32,17 @@ interface CredentialsInfo {
 
 export default function Settings() {
     const { agents, addAgent, removeAgent, selectedAgent, setSelectedAgent, initializeFromLocalStorage } = useAgentStore();
-    const [activeTab, setActiveTab] = useState<'agents' | 'comparison' | 'export'>(
+    const [activeTab, setActiveTab] = useState<'agents' | 'gemini' | 'comparison' | 'export'>(
         'agents'
     );
+
+    // Gemini AI settings
+    const [geminiApiKey, setGeminiApiKey] = useState('');
+    const [geminiModel, setGeminiModel] = useState('gemini-2.5-flash');
+    const [showApiKey, setShowApiKey] = useState(false);
+    const [geminiLoading, setGeminiLoading] = useState(false);
+    const [geminiSaved, setGeminiSaved] = useState(false);
+    const [geminiError, setGeminiError] = useState<string | null>(null);
 
     // Connection status per agent
     const [agentConnectionStatus, setAgentConnectionStatus] = useState<Record<string, AgentConnectionStatus>>({});
@@ -63,7 +74,44 @@ export default function Settings() {
     // Load credentials status on mount
     useEffect(() => {
         loadCredentialsStatus();
+        loadGeminiSettings();
     }, []);
+
+    const loadGeminiSettings = async () => {
+        try {
+            const response = await axios.get('/api/v1/settings/gemini');
+            if (response.data.success && response.data.data) {
+                setGeminiApiKey(response.data.data.apiKey || '');
+                setGeminiModel(response.data.data.model || 'gemini-2.5-flash');
+            }
+        } catch (error) {
+            console.error('Failed to load Gemini settings:', error);
+        }
+    };
+
+    const saveGeminiSettings = async () => {
+        setGeminiLoading(true);
+        setGeminiError(null);
+        setGeminiSaved(false);
+
+        try {
+            const response = await axios.post('/api/v1/settings/gemini', {
+                apiKey: geminiApiKey,
+                model: geminiModel,
+            });
+
+            if (response.data.success) {
+                setGeminiSaved(true);
+                setTimeout(() => setGeminiSaved(false), 3000);
+            } else {
+                setGeminiError(response.data.error || 'Failed to save settings');
+            }
+        } catch (error: any) {
+            setGeminiError(error.response?.data?.error || error.message || 'Failed to save settings');
+        } finally {
+            setGeminiLoading(false);
+        }
+    };
 
     const loadCredentialsStatus = async () => {
         try {
@@ -199,6 +247,7 @@ export default function Settings() {
 
     const tabs = [
         { id: 'agents', label: 'Agent Configuration', icon: Database },
+        { id: 'gemini', label: 'AI Analysis', icon: Brain },
         { id: 'comparison', label: 'Comparison Settings', icon: Sliders },
         { id: 'export', label: 'Export Settings', icon: Save },
     ];
@@ -264,11 +313,36 @@ export default function Settings() {
                                         onChange={(e) => setLocation(e.target.value)}
                                         className="input"
                                     >
-                                        <option value="us-central1">us-central1</option>
-                                        <option value="us-east1">us-east1</option>
-                                        <option value="europe-west1">europe-west1</option>
-                                        <option value="asia-northeast1">asia-northeast1</option>
-                                        <option value="global">global</option>
+                                        <optgroup label="Americas">
+                                            <option value="us-central1">us-central1 (Iowa)</option>
+                                            <option value="us-east1">us-east1 (South Carolina)</option>
+                                            <option value="us-east4">us-east4 (Northern Virginia)</option>
+                                            <option value="us-west1">us-west1 (Oregon)</option>
+                                            <option value="northamerica-northeast1">northamerica-northeast1 (Montreal)</option>
+                                            <option value="northamerica-northeast2">northamerica-northeast2 (Toronto)</option>
+                                            <option value="southamerica-east1">southamerica-east1 (São Paulo)</option>
+                                        </optgroup>
+                                        <optgroup label="Europe">
+                                            <option value="europe-west1">europe-west1 (Belgium)</option>
+                                            <option value="europe-west2">europe-west2 (London)</option>
+                                            <option value="europe-west3">europe-west3 (Frankfurt)</option>
+                                            <option value="europe-west6">europe-west6 (Zurich)</option>
+                                            <option value="europe-central2">europe-central2 (Warsaw)</option>
+                                        </optgroup>
+                                        <optgroup label="Asia Pacific">
+                                            <option value="asia-northeast1">asia-northeast1 (Tokyo)</option>
+                                            <option value="asia-northeast2">asia-northeast2 (Osaka)</option>
+                                            <option value="asia-northeast3">asia-northeast3 (Seoul)</option>
+                                            <option value="asia-south1">asia-south1 (Mumbai)</option>
+                                            <option value="asia-south2">asia-south2 (Delhi)</option>
+                                            <option value="asia-southeast1">asia-southeast1 (Singapore)</option>
+                                            <option value="asia-southeast2">asia-southeast2 (Jakarta)</option>
+                                            <option value="australia-southeast1">australia-southeast1 (Sydney)</option>
+                                            <option value="australia-southeast2">australia-southeast2 (Melbourne)</option>
+                                        </optgroup>
+                                        <optgroup label="Multi-region">
+                                            <option value="global">global</option>
+                                        </optgroup>
                                     </select>
                                 </div>
                             </div>
@@ -526,154 +600,289 @@ export default function Settings() {
                 </div>
             )}
 
-            {/* Comparison Settings Tab */}
-            {activeTab === 'comparison' && (
-                <Card>
-                    <CardHeader
-                        title="Response Comparison Settings"
-                        subtitle="Configure how test responses are compared"
-                    />
-                    <CardContent className="space-y-6">
-                        {/* Fuzzy Match Threshold */}
-                        <div>
-                            <div className="flex items-center justify-between mb-2">
-                                <label className="text-sm font-medium text-dark-300">
-                                    Fuzzy Match Threshold
+            {/* Gemini AI Settings Tab */}
+            {activeTab === 'gemini' && (
+                <div className="space-y-6">
+                    <Card>
+                        <CardHeader
+                            title="Gemini AI Configuration"
+                            subtitle="Configure AI-powered conversation analysis"
+                        />
+                        <CardContent className="space-y-6">
+                            {/* API Key */}
+                            <div>
+                                <label className="block text-sm font-medium text-dark-300 mb-2">
+                                    Gemini API Key
                                 </label>
-                                <span className="text-sm text-primary-400 font-mono">
-                                    {(fuzzyThreshold * 100).toFixed(0)}%
-                                </span>
+                                <div className="relative">
+                                    <input
+                                        type={showApiKey ? 'text' : 'password'}
+                                        value={geminiApiKey}
+                                        onChange={(e) => setGeminiApiKey(e.target.value)}
+                                        placeholder="AIza..."
+                                        className="input pr-10"
+                                    />
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowApiKey(!showApiKey)}
+                                        className="absolute right-3 top-1/2 -translate-y-1/2 text-dark-400 hover:text-dark-200"
+                                    >
+                                        {showApiKey ? (
+                                            <EyeOff className="w-4 h-4" />
+                                        ) : (
+                                            <Eye className="w-4 h-4" />
+                                        )}
+                                    </button>
+                                </div>
+                                <p className="text-xs text-dark-500 mt-2">
+                                    Get your API key from{' '}
+                                    <a
+                                        href="https://aistudio.google.com/app/apikey"
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="text-primary-400 hover:text-primary-300 underline"
+                                    >
+                                        Google AI Studio
+                                    </a>
+                                </p>
                             </div>
-                            <input
-                                type="range"
-                                min="0.5"
-                                max="1"
-                                step="0.05"
-                                value={fuzzyThreshold}
-                                onChange={(e) => setFuzzyThreshold(parseFloat(e.target.value))}
-                                className="w-full h-2 bg-dark-700 rounded-full appearance-none cursor-pointer accent-primary-500"
-                            />
-                            <p className="text-xs text-dark-500 mt-2">
-                                Responses with similarity above this threshold will be considered
-                                matching
-                            </p>
-                        </div>
 
-                        {/* Toggle Options */}
-                        <div className="space-y-4 pt-4 border-t border-dark-700">
-                            <label className="flex items-center justify-between cursor-pointer">
-                                <div>
-                                    <p className="text-sm font-medium text-dark-300">Ignore Case</p>
-                                    <p className="text-xs text-dark-500">
-                                        Compare responses case-insensitively
-                                    </p>
-                                </div>
-                                <button
-                                    onClick={() => setIgnoreCase(!ignoreCase)}
-                                    className={clsx(
-                                        'w-12 h-6 rounded-full transition-colors relative',
-                                        ignoreCase ? 'bg-primary-600' : 'bg-dark-600'
-                                    )}
+                            {/* Model Selection */}
+                            <div>
+                                <label className="block text-sm font-medium text-dark-300 mb-2">
+                                    Model
+                                </label>
+                                <select
+                                    value={geminiModel}
+                                    onChange={(e) => setGeminiModel(e.target.value)}
+                                    className="input"
                                 >
-                                    <span
-                                        className={clsx(
-                                            'absolute top-1 w-4 h-4 rounded-full bg-white transition-transform',
-                                            ignoreCase ? 'translate-x-7' : 'translate-x-1'
-                                        )}
-                                    />
-                                </button>
-                            </label>
+                                    <optgroup label="Gemini 2.5 (Recommended)">
+                                        <option value="gemini-2.5-flash">Gemini 2.5 Flash</option>
+                                        <option value="gemini-2.5-pro">Gemini 2.5 Pro</option>
+                                    </optgroup>
+                                    <optgroup label="Gemini 2.0">
+                                        <option value="gemini-2.0-flash">Gemini 2.0 Flash</option>
+                                        <option value="gemini-2.0-flash-exp">Gemini 2.0 Flash (Experimental)</option>
+                                        <option value="gemini-2.0-pro-exp-02-05">Gemini 2.0 Pro Experimental</option>
+                                    </optgroup>
+                                    <optgroup label="Gemini 1.5">
+                                        <option value="gemini-1.5-flash">Gemini 1.5 Flash</option>
+                                        <option value="gemini-1.5-pro">Gemini 1.5 Pro</option>
+                                    </optgroup>
+                                </select>
+                                <p className="text-xs text-dark-500 mt-2">
+                                    Choose the model for AI conversation analysis. Flash models are faster, Pro models are more accurate.
+                                </p>
+                            </div>
 
-                            <label className="flex items-center justify-between cursor-pointer">
-                                <div>
-                                    <p className="text-sm font-medium text-dark-300">
-                                        Ignore Punctuation
-                                    </p>
-                                    <p className="text-xs text-dark-500">
-                                        Strip punctuation before comparison
-                                    </p>
+                            {/* Status Messages */}
+                            {geminiError && (
+                                <div className="flex items-center gap-2 p-3 bg-danger-500/10 border border-danger-500/30 rounded-lg">
+                                    <AlertCircle className="w-4 h-4 text-danger-400 flex-shrink-0" />
+                                    <p className="text-xs text-danger-300">{geminiError}</p>
                                 </div>
-                                <button
-                                    onClick={() => setIgnorePunctuation(!ignorePunctuation)}
-                                    className={clsx(
-                                        'w-12 h-6 rounded-full transition-colors relative',
-                                        ignorePunctuation ? 'bg-primary-600' : 'bg-dark-600'
-                                    )}
-                                >
-                                    <span
-                                        className={clsx(
-                                            'absolute top-1 w-4 h-4 rounded-full bg-white transition-transform',
-                                            ignorePunctuation ? 'translate-x-7' : 'translate-x-1'
-                                        )}
-                                    />
-                                </button>
-                            </label>
-                        </div>
+                            )}
 
-                        <div className="flex justify-end pt-4">
-                            <Button leftIcon={<Save className="w-4 h-4" />}>Save Settings</Button>
-                        </div>
-                    </CardContent>
-                </Card>
-            )}
+                            {geminiSaved && (
+                                <div className="flex items-center gap-2 p-3 bg-success-500/10 border border-success-500/30 rounded-lg">
+                                    <CheckCircle className="w-4 h-4 text-success-400 flex-shrink-0" />
+                                    <p className="text-xs text-success-300">Settings saved successfully!</p>
+                                </div>
+                            )}
+
+                            {/* Save Button */}
+                            <div className="flex justify-end pt-4 border-t border-dark-700">
+                                <Button
+                                    onClick={saveGeminiSettings}
+                                    disabled={geminiLoading || !geminiApiKey}
+                                    leftIcon={geminiLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                                >
+                                    {geminiLoading ? 'Saving...' : 'Save Settings'}
+                                </Button>
+                            </div>
+                        </CardContent>
+                    </Card>
+
+                    {/* Info Card */}
+                    <Card>
+                        <CardContent className="space-y-3">
+                            <div className="flex items-start gap-3">
+                                <Brain className="w-5 h-5 text-primary-400 mt-0.5" />
+                                <div>
+                                    <p className="text-sm font-medium text-dark-200">About AI Analysis</p>
+                                    <p className="text-xs text-dark-400 mt-1">
+                                        AI Analysis uses Google's Gemini models to analyze conversation transcripts and extract insights including:
+                                    </p>
+                                    <ul className="text-xs text-dark-400 mt-2 space-y-1 list-disc list-inside">
+                                        <li>Customer situation and intent</li>
+                                        <li>Agent actions and resolution</li>
+                                        <li>Customer satisfaction scoring</li>
+                                        <li>Sentiment analysis with progression</li>
+                                        <li>Root cause analysis for issues</li>
+                                        <li>Suggested solutions and improvements</li>
+                                        <li>Key entities extraction</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </CardContent>
+                    </Card>
+                </div>
+            )
+            }
+
+            {/* Comparison Settings Tab */}
+            {
+                activeTab === 'comparison' && (
+                    <Card>
+                        <CardHeader
+                            title="Response Comparison Settings"
+                            subtitle="Configure how test responses are compared"
+                        />
+                        <CardContent className="space-y-6">
+                            {/* Fuzzy Match Threshold */}
+                            <div>
+                                <div className="flex items-center justify-between mb-2">
+                                    <label className="text-sm font-medium text-dark-300">
+                                        Fuzzy Match Threshold
+                                    </label>
+                                    <span className="text-sm text-primary-400 font-mono">
+                                        {(fuzzyThreshold * 100).toFixed(0)}%
+                                    </span>
+                                </div>
+                                <input
+                                    type="range"
+                                    min="0.5"
+                                    max="1"
+                                    step="0.05"
+                                    value={fuzzyThreshold}
+                                    onChange={(e) => setFuzzyThreshold(parseFloat(e.target.value))}
+                                    className="w-full h-2 bg-dark-700 rounded-full appearance-none cursor-pointer accent-primary-500"
+                                />
+                                <p className="text-xs text-dark-500 mt-2">
+                                    Responses with similarity above this threshold will be considered
+                                    matching
+                                </p>
+                            </div>
+
+                            {/* Toggle Options */}
+                            <div className="space-y-4 pt-4 border-t border-dark-700">
+                                <label className="flex items-center justify-between cursor-pointer">
+                                    <div>
+                                        <p className="text-sm font-medium text-dark-300">Ignore Case</p>
+                                        <p className="text-xs text-dark-500">
+                                            Compare responses case-insensitively
+                                        </p>
+                                    </div>
+                                    <button
+                                        onClick={() => setIgnoreCase(!ignoreCase)}
+                                        className={clsx(
+                                            'w-12 h-6 rounded-full transition-colors relative',
+                                            ignoreCase ? 'bg-primary-600' : 'bg-dark-600'
+                                        )}
+                                    >
+                                        <span
+                                            className={clsx(
+                                                'absolute top-1 w-4 h-4 rounded-full bg-white transition-transform',
+                                                ignoreCase ? 'translate-x-7' : 'translate-x-1'
+                                            )}
+                                        />
+                                    </button>
+                                </label>
+
+                                <label className="flex items-center justify-between cursor-pointer">
+                                    <div>
+                                        <p className="text-sm font-medium text-dark-300">
+                                            Ignore Punctuation
+                                        </p>
+                                        <p className="text-xs text-dark-500">
+                                            Strip punctuation before comparison
+                                        </p>
+                                    </div>
+                                    <button
+                                        onClick={() => setIgnorePunctuation(!ignorePunctuation)}
+                                        className={clsx(
+                                            'w-12 h-6 rounded-full transition-colors relative',
+                                            ignorePunctuation ? 'bg-primary-600' : 'bg-dark-600'
+                                        )}
+                                    >
+                                        <span
+                                            className={clsx(
+                                                'absolute top-1 w-4 h-4 rounded-full bg-white transition-transform',
+                                                ignorePunctuation ? 'translate-x-7' : 'translate-x-1'
+                                            )}
+                                        />
+                                    </button>
+                                </label>
+                            </div>
+
+                            <div className="flex justify-end pt-4">
+                                <Button leftIcon={<Save className="w-4 h-4" />}>Save Settings</Button>
+                            </div>
+                        </CardContent>
+                    </Card>
+                )
+            }
 
             {/* Export Settings Tab */}
-            {activeTab === 'export' && (
-                <Card>
-                    <CardHeader
-                        title="Export Preferences"
-                        subtitle="Configure default export formats and options"
-                    />
-                    <CardContent className="space-y-4">
-                        <div>
-                            <label className="block text-sm font-medium text-dark-300 mb-2">
-                                Default Export Format
-                            </label>
-                            <select className="input">
-                                <option value="csv">CSV</option>
-                                <option value="json">JSON</option>
-                                <option value="excel">Excel (.xlsx)</option>
-                            </select>
-                        </div>
+            {
+                activeTab === 'export' && (
+                    <Card>
+                        <CardHeader
+                            title="Export Preferences"
+                            subtitle="Configure default export formats and options"
+                        />
+                        <CardContent className="space-y-4">
+                            <div>
+                                <label className="block text-sm font-medium text-dark-300 mb-2">
+                                    Default Export Format
+                                </label>
+                                <select className="input">
+                                    <option value="csv">CSV</option>
+                                    <option value="json">JSON</option>
+                                    <option value="excel">Excel (.xlsx)</option>
+                                </select>
+                            </div>
 
-                        <div className="space-y-3 pt-4">
-                            <label className="flex items-center gap-3">
-                                <input
-                                    type="checkbox"
-                                    defaultChecked
-                                    className="w-4 h-4 rounded border-dark-600 bg-dark-700 text-primary-600 focus:ring-primary-500"
-                                />
-                                <span className="text-sm text-dark-300">
-                                    Include detailed response comparisons
-                                </span>
-                            </label>
-                            <label className="flex items-center gap-3">
-                                <input
-                                    type="checkbox"
-                                    defaultChecked
-                                    className="w-4 h-4 rounded border-dark-600 bg-dark-700 text-primary-600 focus:ring-primary-500"
-                                />
-                                <span className="text-sm text-dark-300">
-                                    Include execution timestamps
-                                </span>
-                            </label>
-                            <label className="flex items-center gap-3">
-                                <input
-                                    type="checkbox"
-                                    className="w-4 h-4 rounded border-dark-600 bg-dark-700 text-primary-600 focus:ring-primary-500"
-                                />
-                                <span className="text-sm text-dark-300">
-                                    Include full API responses (verbose)
-                                </span>
-                            </label>
-                        </div>
+                            <div className="space-y-3 pt-4">
+                                <label className="flex items-center gap-3">
+                                    <input
+                                        type="checkbox"
+                                        defaultChecked
+                                        className="w-4 h-4 rounded border-dark-600 bg-dark-700 text-primary-600 focus:ring-primary-500"
+                                    />
+                                    <span className="text-sm text-dark-300">
+                                        Include detailed response comparisons
+                                    </span>
+                                </label>
+                                <label className="flex items-center gap-3">
+                                    <input
+                                        type="checkbox"
+                                        defaultChecked
+                                        className="w-4 h-4 rounded border-dark-600 bg-dark-700 text-primary-600 focus:ring-primary-500"
+                                    />
+                                    <span className="text-sm text-dark-300">
+                                        Include execution timestamps
+                                    </span>
+                                </label>
+                                <label className="flex items-center gap-3">
+                                    <input
+                                        type="checkbox"
+                                        className="w-4 h-4 rounded border-dark-600 bg-dark-700 text-primary-600 focus:ring-primary-500"
+                                    />
+                                    <span className="text-sm text-dark-300">
+                                        Include full API responses (verbose)
+                                    </span>
+                                </label>
+                            </div>
 
-                        <div className="flex justify-end pt-4">
-                            <Button leftIcon={<Save className="w-4 h-4" />}>Save Settings</Button>
-                        </div>
-                    </CardContent>
-                </Card>
-            )}
-        </div>
+                            <div className="flex justify-end pt-4">
+                                <Button leftIcon={<Save className="w-4 h-4" />}>Save Settings</Button>
+                            </div>
+                        </CardContent>
+                    </Card>
+                )
+            }
+        </div >
     );
 }

@@ -134,6 +134,9 @@ FRONTEND_URL=http://localhost:5173
 MAX_CONCURRENCY=5
 TEST_TIMEOUT_MS=30000
 RETRY_ATTEMPTS=2
+
+# Vertex AI Configuration (uses Google Cloud credentials above)
+GEMINI_MODEL=gemini-1.5-flash
 ```
 
 ### Running the Application

@@ -2,8 +2,15 @@ import { Router, Request, Response } from 'express';
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
+import { config } from '../config';
 
 const router = Router();
+
+// In-memory storage for runtime settings (in production, use database)
+let geminiSettings = {
+    apiKey: config.gemini.apiKey || '',
+    model: config.gemini.model || 'gemini-2.5-flash',
+};
 
 // Configure multer for credentials file upload
 const credentialsStorage = multer.diskStorage({
@@ -153,6 +160,106 @@ router.delete('/credentials', (req: Request, res: Response) => {
         return res.status(500).json({
             success: false,
             error: error.message || 'Failed to remove credentials',
+        });
+    }
+});
+
+// Get Gemini AI settings
+router.get('/gemini', (req: Request, res: Response) => {
+    // Mask the API key for security (show only last 4 characters)
+    const maskedKey = geminiSettings.apiKey
+        ? '****' + geminiSettings.apiKey.slice(-4)
+        : '';
+
+    return res.json({
+        success: true,
+        data: {
+            apiKey: geminiSettings.apiKey, // Send full key so it can be edited
+            apiKeyMasked: maskedKey,
+            model: geminiSettings.model,
+            configured: !!geminiSettings.apiKey,
+        },
+    });
+});
+
+// Save Gemini AI settings
+router.post('/gemini', async (req: Request, res: Response) => {
+    try {
+        const { apiKey, model } = req.body;
+
+        if (!apiKey) {
+            return res.status(400).json({
+                success: false,
+                error: 'API key is required',
+            });
+        }
+
+        // Update in-memory settings
+        geminiSettings.apiKey = apiKey;
+        geminiSettings.model = model || 'gemini-2.5-flash';
+
+        // Update environment variables
+        process.env.GEMINI_API_KEY = apiKey;
+        process.env.GEMINI_MODEL = model || 'gemini-2.5-flash';
+        config.gemini.apiKey = apiKey;
+        config.gemini.model = model || 'gemini-2.5-flash';
+
+        // Persist to .env file
+        const envPath = path.resolve(__dirname, '../../.env');
+
+        try {
+            let envContent = '';
+            if (fs.existsSync(envPath)) {
+                envContent = fs.readFileSync(envPath, 'utf-8');
+            }
+
+            const envLines = envContent.split('\n');
+            const newEnvLines: string[] = [];
+            let apiKeyFound = false;
+            let modelFound = false;
+
+            for (const line of envLines) {
+                if (line.startsWith('GEMINI_API_KEY=')) {
+                    newEnvLines.push(`GEMINI_API_KEY=${apiKey}`);
+                    apiKeyFound = true;
+                } else if (line.startsWith('GEMINI_MODEL=')) {
+                    newEnvLines.push(`GEMINI_MODEL=${model || 'gemini-2.5-flash'}`);
+                    modelFound = true;
+                } else {
+                    newEnvLines.push(line);
+                }
+            }
+
+            if (!apiKeyFound) {
+                newEnvLines.push(`GEMINI_API_KEY=${apiKey}`);
+            }
+            if (!modelFound) {
+                newEnvLines.push(`GEMINI_MODEL=${model || 'gemini-2.5-flash'}`);
+            }
+
+            // Remove empty lines at the end before joining (optional cleanup)
+            const finalContent = newEnvLines.join('\n').replace(/\n+$/, '') + '\n';
+
+            fs.writeFileSync(envPath, finalContent);
+            console.log('Updated .env file with new Gemini settings');
+        } catch (fileError) {
+            console.error('Failed to write to .env file:', fileError);
+            // Continue even if file write fails, as in-memory update worked
+        }
+
+        return res.json({
+            success: true,
+            message: 'Gemini settings saved successfully',
+            data: {
+                model: geminiSettings.model,
+                configured: true,
+            },
+        });
+    } catch (error: any) {
+        console.error('Save Gemini settings error:', error);
+        return res.status(500).json({
+            success: false,
+            error: error.message || 'Failed to save settings',
         });
     }
 });

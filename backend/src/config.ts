@@ -36,6 +36,12 @@ export const config = {
         timeoutMs: parseInt(process.env.TEST_TIMEOUT_MS || '30000', 10),
         retryAttempts: parseInt(process.env.RETRY_ATTEMPTS || '2', 10),
     },
+
+    // Gemini AI (using Google AI Studio API)
+    gemini: {
+        apiKey: process.env.GEMINI_API_KEY || '',
+        model: process.env.GEMINI_MODEL || 'gemini-1.5-flash',
+    },
 };
 
 export default config;

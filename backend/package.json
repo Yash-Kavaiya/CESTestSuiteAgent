@@ -12,6 +12,8 @@
     },
     "dependencies": {
         "@google-cloud/dialogflow-cx": "^4.10.0",
+        "@google-cloud/vertexai": "^1.10.0",
+        "@google/generative-ai": "^0.24.1",
         "better-sqlite3": "^12.5.0",
         "bull": "^4.12.0",
         "cors": "^2.8.5",

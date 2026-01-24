@@ -8,6 +8,7 @@ import History from './pages/History';
 import Settings from './pages/Settings';
 import Simulator from './pages/Simulator';
 import AgentUrlTest from './pages/AgentUrlTest';
+import AIAnalysis from './pages/AIAnalysis';
 
 function App() {
     return (
@@ -21,6 +22,7 @@ function App() {
                 <Route path="/settings" element={<Settings />} />
                 <Route path="/simulator" element={<Simulator />} />
                 <Route path="/agent-url-test" element={<AgentUrlTest />} />
+                <Route path="/ai-analysis" element={<AIAnalysis />} />
             </Routes>
         </Layout>
     );

@@ -82,8 +82,27 @@ jobs:
             --memory 256Mi \
             --project ${{ env.PROJECT_ID }}
 
-      - name: Show Deployment URLs
+      - name: Create Job Summary
+        if: success()
         run: |
-          echo "🚀 Deployment Complete!"
-          echo "Backend: $(gcloud run services describe ${{ env.BACKEND_SERVICE }} --region ${{ env.REGION }} --project ${{ env.PROJECT_ID }} --format 'value(status.url)')"
-          echo "Frontend: $(gcloud run services describe ${{ env.FRONTEND_SERVICE }} --region ${{ env.REGION }} --project ${{ env.PROJECT_ID }} --format 'value(status.url)')"
+          BACKEND_URL=$(gcloud run services describe ${{ env.BACKEND_SERVICE }} --region ${{ env.REGION }} --project ${{ env.PROJECT_ID }} --format 'value(status.url)')
+          FRONTEND_URL=$(gcloud run services describe ${{ env.FRONTEND_SERVICE }} --region ${{ env.REGION }} --project ${{ env.PROJECT_ID }} --format 'value(status.url)')
+          
+          echo "# 🚀 Deployment Successful" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 🔗 Service URLs" >> $GITHUB_STEP_SUMMARY
+          echo "| Service | URL |" >> $GITHUB_STEP_SUMMARY
+          echo "|---------|-----|" >> $GITHUB_STEP_SUMMARY
+          echo "| **Frontend** | [$FRONTEND_URL]($FRONTEND_URL) |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Backend** | [$BACKEND_URL]($BACKEND_URL) |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 📦 Pipeline Visualization" >> $GITHUB_STEP_SUMMARY
+          echo '```mermaid' >> $GITHUB_STEP_SUMMARY
+          echo 'graph LR' >> $GITHUB_STEP_SUMMARY
+          echo '  User[User Push] -->|Triggers| CI[GitHub Action]' >> $GITHUB_STEP_SUMMARY
+          echo '  CI -->|Deploys| BE[Backend Service]' >> $GITHUB_STEP_SUMMARY
+          echo '  BE -->|Configures| FE[Frontend Service]' >> $GITHUB_STEP_SUMMARY
+          echo '  FE -->|Public URL| Access[User Access]' >> $GITHUB_STEP_SUMMARY
+          echo '  style BE fill:#2563EB,stroke:#1E40AF,color:#fff' >> $GITHUB_STEP_SUMMARY
+          echo '  style FE fill:#7C3AED,stroke:#5B21B6,color:#fff' >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY

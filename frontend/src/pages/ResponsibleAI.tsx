@@ -26,7 +26,6 @@ import {
     DatasetInfo,
     DatasetSample,
     RAITestJob,
-    RAITestResult,
 } from '../api/responsibleAI';
 import { getCache, setCache, CACHE_KEYS } from '../utils/cache';
 

@@ -18,6 +18,7 @@ import {
     coverageApi,
     AllCoverageData,
 } from '../api/coverage';
+import { getCache, setCache, CACHE_KEYS } from '../utils/cache';
 
 type CoverageTab = 'intents' | 'transitions' | 'routeGroups';
 
@@ -28,8 +29,21 @@ export default function Coverage() {
     // State for all coverage data
     const [allCoverageData, setAllCoverageData] = useState<AllCoverageData | null>(null);
     const [loading, setLoading] = useState(false);
+    const [isRefreshing, setIsRefreshing] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+
+    // Load cached data immediately when agent changes
+    useEffect(() => {
+        if (selectedAgent) {
+            const cachedData = getCache<AllCoverageData>(CACHE_KEYS.COVERAGE_DATA, selectedAgent.id);
+            if (cachedData) {
+                setAllCoverageData(cachedData);
+            }
+        } else {
+            setAllCoverageData(null);
+        }
+    }, [selectedAgent]);
 
     useEffect(() => {
         if (selectedAgent) {
@@ -43,7 +57,13 @@ export default function Coverage() {
             return;
         }
 
-        setLoading(true);
+        // If we have cached data, show refreshing indicator instead of full loading
+        const hasCachedData = allCoverageData !== null;
+        if (hasCachedData) {
+            setIsRefreshing(true);
+        } else {
+            setLoading(true);
+        }
         setError(null);
 
         try {
@@ -52,6 +72,8 @@ export default function Coverage() {
             if (response.success && response.data) {
                 setAllCoverageData(response.data);
                 setLastUpdated(new Date());
+                // Cache the fresh data
+                setCache(CACHE_KEYS.COVERAGE_DATA, selectedAgent.id, response.data);
             } else {
                 setError(response.error || 'Failed to load coverage data');
             }
@@ -59,6 +81,7 @@ export default function Coverage() {
             setError(err.message || 'An error occurred while loading coverage');
         } finally {
             setLoading(false);
+            setIsRefreshing(false);
         }
     };
 
@@ -76,6 +99,7 @@ export default function Coverage() {
         );
     }
 
+    // Only show full loading screen when loading AND no cached data
     if (loading && !allCoverageData) {
         return (
             <div className="p-8 text-center text-dark-400">
@@ -94,7 +118,12 @@ export default function Coverage() {
             {/* Page Header */}
             <div className="flex items-center justify-between">
                 <div>
-                    <h1 className="text-2xl font-bold text-primary-700">Coverage Analysis</h1>
+                    <h1 className="text-2xl font-bold text-primary-700">
+                        Coverage Analysis
+                        {isRefreshing && (
+                            <Loader2 className="w-4 h-4 inline ml-2 animate-spin text-primary-400" />
+                        )}
+                    </h1>
                     <p className="text-dark-400 mt-1">
                         Real-time test coverage from Dialogflow CX for {selectedAgent.displayName}
                     </p>
@@ -108,9 +137,9 @@ export default function Coverage() {
                     <Button
                         variant="secondary"
                         onClick={handleRefresh}
-                        disabled={loading}
+                        disabled={loading || isRefreshing}
                     >
-                        {loading ? (
+                        {(loading || isRefreshing) ? (
                             <Loader2 className="w-4 h-4 animate-spin mr-2" />
                         ) : (
                             <RefreshCw className="w-4 h-4 mr-2" />

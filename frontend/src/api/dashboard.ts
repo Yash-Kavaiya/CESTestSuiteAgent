@@ -67,11 +67,16 @@ export interface DashboardMetrics {
     recentConversations: RecentConversation[];
 }
 
+export interface DateFilter {
+    startTimeMin?: string; // ISO 8601 format
+    startTimeMax?: string; // ISO 8601 format
+}
+
 export const dashboardApi = {
     /**
      * Get dashboard analytics for an agent
      */
-    async getDashboardMetrics(agent: Agent, limit = 50): Promise<{
+    async getDashboardMetrics(agent: Agent, limit = 50, dateFilter?: DateFilter): Promise<{
         success: boolean;
         data?: DashboardMetrics;
         error?: string;
@@ -84,6 +89,7 @@ export const dashboardApi = {
                 agentId: agent.id,
                 projectId: agent.projectId,
                 limit: validLimit,
+                dateFilter,
             });
 
             const response = await axios.get(`${API_BASE}/analytics/dashboard`, {
@@ -92,6 +98,8 @@ export const dashboardApi = {
                     location: agent.location,
                     agentId: agent.id,
                     limit: validLimit,
+                    ...(dateFilter?.startTimeMin && { startTimeMin: dateFilter.startTimeMin }),
+                    ...(dateFilter?.startTimeMax && { startTimeMax: dateFilter.startTimeMax }),
                 },
             });
 

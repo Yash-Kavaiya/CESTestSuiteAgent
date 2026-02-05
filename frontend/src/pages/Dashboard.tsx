@@ -19,11 +19,13 @@ import { Link } from 'react-router-dom';
 import Card, { CardHeader, CardContent } from '../components/ui/Card';
 import Button from '../components/ui/Button';
 import DonutChart from '../components/charts/DonutChart';
+import DateRangePicker, { DateRange } from '../components/ui/DateRangePicker';
 import { useAgentStore } from '../store/useAgentStore';
 import clsx from 'clsx';
 import { format } from 'date-fns';
-import { dashboardApi, DashboardMetrics } from '../api/dashboard';
+import { dashboardApi, DashboardMetrics, DateFilter } from '../api/dashboard';
 import { extractErrorMessage } from '../utils/errors';
+import { getCache, setCache, CACHE_KEYS } from '../utils/cache';
 
 function formatDuration(seconds: number): string {
     if (seconds < 60) return `${seconds.toFixed(0)}s`;
@@ -34,8 +36,41 @@ function formatDuration(seconds: number): string {
 export default function Dashboard() {
     const { selectedAgent } = useAgentStore();
     const [isLoading, setIsLoading] = useState(false);
+    const [isRefreshing, setIsRefreshing] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [metrics, setMetrics] = useState<DashboardMetrics | null>(null);
+    const [dateRange, setDateRange] = useState<DateRange>({ startDate: null, endDate: null });
+
+    // Convert DateRange to DateFilter for API
+    const getDateFilter = useCallback((): DateFilter | undefined => {
+        if (!dateRange.startDate && !dateRange.endDate) {
+            return undefined;
+        }
+        return {
+            startTimeMin: dateRange.startDate?.toISOString(),
+            startTimeMax: dateRange.endDate?.toISOString(),
+        };
+    }, [dateRange]);
+
+    // Generate cache key including date filter
+    const getCacheKey = useCallback(() => {
+        const dateFilter = getDateFilter();
+        if (!dateFilter) return selectedAgent?.id || '';
+        return `${selectedAgent?.id}_${dateFilter.startTimeMin || ''}_${dateFilter.startTimeMax || ''}`;
+    }, [selectedAgent?.id, getDateFilter]);
+
+    // Load cached data immediately when agent or date filter changes
+    useEffect(() => {
+        if (selectedAgent) {
+            const cacheKey = getCacheKey();
+            const cachedData = getCache<DashboardMetrics>(CACHE_KEYS.DASHBOARD_METRICS, cacheKey);
+            if (cachedData) {
+                setMetrics(cachedData);
+            }
+        } else {
+            setMetrics(null);
+        }
+    }, [selectedAgent, getCacheKey]);
 
     const loadMetrics = useCallback(async () => {
         if (!selectedAgent) {
@@ -43,12 +78,23 @@ export default function Dashboard() {
             return;
         }
 
-        setIsLoading(true);
+        // If we have cached data, show refreshing indicator instead of full loading
+        const hasCachedData = metrics !== null;
+        if (hasCachedData) {
+            setIsRefreshing(true);
+        } else {
+            setIsLoading(true);
+        }
         setError(null);
+
         try {
-            const response = await dashboardApi.getDashboardMetrics(selectedAgent);
+            const dateFilter = getDateFilter();
+            const response = await dashboardApi.getDashboardMetrics(selectedAgent, 50, dateFilter);
             if (response.success && response.data) {
                 setMetrics(response.data);
+                // Cache the fresh data with date-specific key
+                const cacheKey = getCacheKey();
+                setCache(CACHE_KEYS.DASHBOARD_METRICS, cacheKey, response.data);
             } else {
                 setError(response.error || 'Unable to load analytics data. Please try again.');
             }
@@ -56,12 +102,15 @@ export default function Dashboard() {
             setError(extractErrorMessage(err));
         } finally {
             setIsLoading(false);
+            setIsRefreshing(false);
         }
-    }, [selectedAgent]);
+    }, [selectedAgent, metrics, getDateFilter, getCacheKey]);
 
     useEffect(() => {
-        loadMetrics();
-    }, [loadMetrics]);
+        if (selectedAgent) {
+            loadMetrics();
+        }
+    }, [selectedAgent, dateRange]);
 
     // Primary stat cards (top row)
     const primaryStats = [
@@ -163,22 +212,33 @@ export default function Dashboard() {
             {/* Page Header */}
             <div className="flex items-center justify-between">
                 <div>
-                    <h1 className="text-2xl font-bold text-primary-700">Dashboard</h1>
+                    <h1 className="text-2xl font-bold text-primary-700">
+                        Dashboard
+                        {isRefreshing && (
+                            <Loader2 className="w-4 h-4 inline ml-2 animate-spin text-primary-400" />
+                        )}
+                    </h1>
                     <p className="text-dark-400 mt-1">
                         {selectedAgent
                             ? `Conversation Analytics for ${selectedAgent.displayName}`
                             : 'Select an agent from the header to view analytics'}
                     </p>
                 </div>
-                <div className="flex gap-3">
+                <div className="flex items-center gap-3">
+                    {selectedAgent && (
+                        <DateRangePicker
+                            value={dateRange}
+                            onChange={setDateRange}
+                        />
+                    )}
                     <Link to="/bulk-test">
                         <Button leftIcon={<Zap className="w-4 h-4" />}>Run Batch</Button>
                     </Link>
                 </div>
             </div>
 
-            {/* Loading State */}
-            {isLoading && (
+            {/* Loading State - Only show full loading when no cached data */}
+            {isLoading && !metrics && (
                 <div className="flex items-center justify-center py-12">
                     <Loader2 className="w-8 h-8 animate-spin text-primary-500" />
                     <span className="ml-3 text-dark-400">Loading conversation analytics...</span>
@@ -216,8 +276,8 @@ export default function Dashboard() {
                 </Card>
             )}
 
-            {/* Main Content - Only show when we have metrics */}
-            {metrics && !isLoading && (
+            {/* Main Content - Show when we have metrics (cached or fresh) */}
+            {metrics && (
                 <>
                     {/* Primary Stats Grid */}
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">

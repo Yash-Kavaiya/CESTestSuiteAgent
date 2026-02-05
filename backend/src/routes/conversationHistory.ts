@@ -15,7 +15,7 @@ function getApiEndpoint(location: string): string {
 // List all conversations for an agent
 router.get('/', async (req: Request, res: Response) => {
     try {
-        const { projectId, location, agentId, pageSize = 50, pageToken } = req.query;
+        const { projectId, location, agentId, pageSize = 50, pageToken, startTimeMin, startTimeMax } = req.query;
 
         if (!projectId || !location || !agentId) {
             return res.status(400).json({
@@ -31,10 +31,26 @@ router.get('/', async (req: Request, res: Response) => {
 
         const parent = `projects/${projectId}/locations/${location}/agents/${agentId}`;
 
+        // Build filter string for date range
+        let filter: string | undefined;
+        const filterParts: string[] = [];
+
+        if (startTimeMin) {
+            filterParts.push(`start_time >= "${startTimeMin}"`);
+        }
+        if (startTimeMax) {
+            filterParts.push(`start_time <= "${startTimeMax}"`);
+        }
+
+        if (filterParts.length > 0) {
+            filter = filterParts.join(' AND ');
+        }
+
         const [conversations, , response] = await client.listConversations({
             parent,
             pageSize: parseInt(pageSize as string, 10),
             pageToken: pageToken as string || undefined,
+            filter,
         });
 
         // Transform conversations to a cleaner format
@@ -195,7 +211,7 @@ router.delete('/:conversationId', async (req: Request, res: Response) => {
 // Get dashboard metrics from conversations
 router.get('/analytics/dashboard', async (req: Request, res: Response) => {
     try {
-        const { projectId, location, agentId, limit = 50 } = req.query;
+        const { projectId, location, agentId, limit = 50, startTimeMin, startTimeMax } = req.query;
 
         if (!projectId || !location || !agentId) {
             return res.status(400).json({
@@ -211,10 +227,26 @@ router.get('/analytics/dashboard', async (req: Request, res: Response) => {
 
         const parent = `projects/${projectId}/locations/${location}/agents/${agentId}`;
 
+        // Build filter string for date range
+        let filter: string | undefined;
+        const filterParts: string[] = [];
+
+        if (startTimeMin) {
+            filterParts.push(`start_time >= "${startTimeMin}"`);
+        }
+        if (startTimeMax) {
+            filterParts.push(`start_time <= "${startTimeMax}"`);
+        }
+
+        if (filterParts.length > 0) {
+            filter = filterParts.join(' AND ');
+        }
+
         // Fetch conversations
         const [conversations] = await client.listConversations({
             parent,
             pageSize: parseInt(limit as string, 10),
+            filter,
         });
 
         // Initialize aggregated metrics
@@ -432,7 +464,7 @@ router.get('/analytics/dashboard', async (req: Request, res: Response) => {
 // Get aggregated coverage data from recent conversations
 router.get('/analytics/coverage', async (req: Request, res: Response) => {
     try {
-        const { projectId, location, agentId, limit = 100 } = req.query;
+        const { projectId, location, agentId, limit = 100, startTimeMin, startTimeMax } = req.query;
 
         if (!projectId || !location || !agentId) {
             return res.status(400).json({
@@ -448,10 +480,26 @@ router.get('/analytics/coverage', async (req: Request, res: Response) => {
 
         const parent = `projects/${projectId}/locations/${location}/agents/${agentId}`;
 
+        // Build filter string for date range
+        let filter: string | undefined;
+        const filterParts: string[] = [];
+
+        if (startTimeMin) {
+            filterParts.push(`start_time >= "${startTimeMin}"`);
+        }
+        if (startTimeMax) {
+            filterParts.push(`start_time <= "${startTimeMax}"`);
+        }
+
+        if (filterParts.length > 0) {
+            filter = filterParts.join(' AND ');
+        }
+
         // Fetch conversations
         const [conversations] = await client.listConversations({
             parent,
             pageSize: parseInt(limit as string, 10),
+            filter,
         });
 
         // Aggregate intents and pages from all conversations

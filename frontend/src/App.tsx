@@ -9,6 +9,7 @@ import Settings from './pages/Settings';
 import Simulator from './pages/Simulator';
 import AgentUrlTest from './pages/AgentUrlTest';
 import AIAnalysis from './pages/AIAnalysis';
+import ResponsibleAI from './pages/ResponsibleAI';
 
 function App() {
     return (
@@ -23,6 +24,7 @@ function App() {
                 <Route path="/simulator" element={<Simulator />} />
                 <Route path="/agent-url-test" element={<AgentUrlTest />} />
                 <Route path="/ai-analysis" element={<AIAnalysis />} />
+                <Route path="/responsible-ai" element={<ResponsibleAI />} />
             </Routes>
         </Layout>
     );

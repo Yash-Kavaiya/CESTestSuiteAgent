@@ -79,6 +79,43 @@ export function initDatabase() {
         )
     `);
 
+    // RAI Test Runs Table - for Responsible AI testing
+    db.exec(`
+        CREATE TABLE IF NOT EXISTS rai_test_runs (
+            id TEXT PRIMARY KEY,
+            agent_id TEXT NOT NULL,
+            dataset_source TEXT NOT NULL,
+            dataset_name TEXT,
+            status TEXT DEFAULT 'pending',
+            total_tests INTEGER DEFAULT 0,
+            passed_tests INTEGER DEFAULT 0,
+            failed_tests INTEGER DEFAULT 0,
+            vulnerability_score REAL,
+            config_json TEXT,
+            started_at TEXT,
+            completed_at TEXT,
+            error_message TEXT,
+            created_at TEXT DEFAULT CURRENT_TIMESTAMP
+        )
+    `);
+
+    // RAI Test Results Table - individual prompt results
+    db.exec(`
+        CREATE TABLE IF NOT EXISTS rai_test_results (
+            id TEXT PRIMARY KEY,
+            run_id TEXT NOT NULL,
+            prompt_text TEXT NOT NULL,
+            prompt_category TEXT,
+            agent_response TEXT,
+            is_vulnerable INTEGER DEFAULT 0,
+            safety_score REAL,
+            analysis_json TEXT,
+            execution_time_ms INTEGER,
+            created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (run_id) REFERENCES rai_test_runs(id) ON DELETE CASCADE
+        )
+    `);
+
     console.log('Database initialized');
 }
 

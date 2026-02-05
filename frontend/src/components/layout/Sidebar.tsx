@@ -11,6 +11,7 @@ import {
     MessageSquare,
     Globe,
     Brain,
+    ShieldAlert,
 } from 'lucide-react';
 import { useState } from 'react';
 import clsx from 'clsx';
@@ -24,6 +25,7 @@ const navigation = [
     { name: 'Coverage', href: '/coverage', icon: PieChart },
     { name: 'History', href: '/history', icon: History },
     { name: 'AI Analysis', href: '/ai-analysis', icon: Brain },
+    { name: 'Responsible AI', href: '/responsible-ai', icon: ShieldAlert },
 ];
 
 const bottomNav = [

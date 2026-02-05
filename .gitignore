@@ -92,3 +92,6 @@ test_download*.csv
 .history/
 *.pid
 *.seed
+
+# Windows reserved names
+nul

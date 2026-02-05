@@ -31,20 +31,23 @@ router.get('/', async (req: Request, res: Response) => {
 
         const parent = `projects/${projectId}/locations/${location}/agents/${agentId}`;
 
-        // Build filter string for date range
+        // Build filter string for date range using createTime (RFC-3339 format)
+        // Dialogflow CX API uses createTime, not start_time
         let filter: string | undefined;
         const filterParts: string[] = [];
 
         if (startTimeMin) {
-            filterParts.push(`start_time >= "${startTimeMin}"`);
+            filterParts.push(`createTime > "${startTimeMin}"`);
         }
         if (startTimeMax) {
-            filterParts.push(`start_time <= "${startTimeMax}"`);
+            filterParts.push(`createTime < "${startTimeMax}"`);
         }
 
         if (filterParts.length > 0) {
             filter = filterParts.join(' AND ');
         }
+
+        console.log('Filter applied:', filter);
 
         const [conversations, , response] = await client.listConversations({
             parent,
@@ -227,20 +230,23 @@ router.get('/analytics/dashboard', async (req: Request, res: Response) => {
 
         const parent = `projects/${projectId}/locations/${location}/agents/${agentId}`;
 
-        // Build filter string for date range
+        // Build filter string for date range using createTime (RFC-3339 format)
+        // Dialogflow CX API uses createTime, not start_time
         let filter: string | undefined;
         const filterParts: string[] = [];
 
         if (startTimeMin) {
-            filterParts.push(`start_time >= "${startTimeMin}"`);
+            filterParts.push(`createTime > "${startTimeMin}"`);
         }
         if (startTimeMax) {
-            filterParts.push(`start_time <= "${startTimeMax}"`);
+            filterParts.push(`createTime < "${startTimeMax}"`);
         }
 
         if (filterParts.length > 0) {
             filter = filterParts.join(' AND ');
         }
+
+        console.log('Dashboard filter applied:', filter);
 
         // Fetch conversations
         const [conversations] = await client.listConversations({
@@ -480,20 +486,23 @@ router.get('/analytics/coverage', async (req: Request, res: Response) => {
 
         const parent = `projects/${projectId}/locations/${location}/agents/${agentId}`;
 
-        // Build filter string for date range
+        // Build filter string for date range using createTime (RFC-3339 format)
+        // Dialogflow CX API uses createTime, not start_time
         let filter: string | undefined;
         const filterParts: string[] = [];
 
         if (startTimeMin) {
-            filterParts.push(`start_time >= "${startTimeMin}"`);
+            filterParts.push(`createTime > "${startTimeMin}"`);
         }
         if (startTimeMax) {
-            filterParts.push(`start_time <= "${startTimeMax}"`);
+            filterParts.push(`createTime < "${startTimeMax}"`);
         }
 
         if (filterParts.length > 0) {
             filter = filterParts.join(' AND ');
         }
+
+        console.log('Coverage filter applied:', filter);
 
         // Fetch conversations
         const [conversations] = await client.listConversations({

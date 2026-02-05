@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react';
-import { Calendar, X } from 'lucide-react';
+import { Calendar, X, Clock } from 'lucide-react';
 import clsx from 'clsx';
-import { format, subDays, startOfDay, endOfDay } from 'date-fns';
+import { format, subDays, startOfDay, endOfDay, setHours, setMinutes } from 'date-fns';
 
 export interface DateRange {
     startDate: Date | null;
@@ -24,6 +24,12 @@ const presets = [
 export default function DateRangePicker({ value, onChange, className }: DateRangePickerProps) {
     const [isOpen, setIsOpen] = useState(false);
 
+    // Local state for custom date/time inputs
+    const [customStartDate, setCustomStartDate] = useState('');
+    const [customStartTime, setCustomStartTime] = useState('00:00');
+    const [customEndDate, setCustomEndDate] = useState('');
+    const [customEndTime, setCustomEndTime] = useState('23:59');
+
     const handlePresetClick = useCallback((days: number) => {
         const endDate = endOfDay(new Date());
         const startDate = days === 0 ? startOfDay(new Date()) : startOfDay(subDays(new Date(), days));
@@ -33,31 +39,58 @@ export default function DateRangePicker({ value, onChange, className }: DateRang
 
     const handleClear = useCallback(() => {
         onChange({ startDate: null, endDate: null });
+        setCustomStartDate('');
+        setCustomStartTime('00:00');
+        setCustomEndDate('');
+        setCustomEndTime('23:59');
         setIsOpen(false);
     }, [onChange]);
 
-    const handleStartDateChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-        const date = e.target.value ? startOfDay(new Date(e.target.value)) : null;
-        onChange({ ...value, startDate: date });
-    }, [value, onChange]);
+    const handleApply = useCallback(() => {
+        let startDate: Date | null = null;
+        let endDate: Date | null = null;
 
-    const handleEndDateChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-        const date = e.target.value ? endOfDay(new Date(e.target.value)) : null;
-        onChange({ ...value, endDate: date });
-    }, [value, onChange]);
+        if (customStartDate) {
+            const [hours, minutes] = customStartTime.split(':').map(Number);
+            startDate = setMinutes(setHours(new Date(customStartDate), hours), minutes);
+        }
+
+        if (customEndDate) {
+            const [hours, minutes] = customEndTime.split(':').map(Number);
+            endDate = setMinutes(setHours(new Date(customEndDate), hours), minutes);
+        }
+
+        onChange({ startDate, endDate });
+        setIsOpen(false);
+    }, [customStartDate, customStartTime, customEndDate, customEndTime, onChange]);
+
+    // Initialize custom inputs when opening and value exists
+    const handleOpen = useCallback(() => {
+        if (value.startDate) {
+            setCustomStartDate(format(value.startDate, 'yyyy-MM-dd'));
+            setCustomStartTime(format(value.startDate, 'HH:mm'));
+        }
+        if (value.endDate) {
+            setCustomEndDate(format(value.endDate, 'yyyy-MM-dd'));
+            setCustomEndTime(format(value.endDate, 'HH:mm'));
+        }
+        setIsOpen(true);
+    }, [value]);
 
     const formatDateDisplay = () => {
         if (!value.startDate && !value.endDate) {
             return 'All time';
         }
         if (value.startDate && value.endDate) {
-            return `${format(value.startDate, 'MMM d, yyyy')} - ${format(value.endDate, 'MMM d, yyyy')}`;
+            const startStr = format(value.startDate, 'MMM d, yyyy HH:mm');
+            const endStr = format(value.endDate, 'MMM d, yyyy HH:mm');
+            return `${startStr} - ${endStr}`;
         }
         if (value.startDate) {
-            return `From ${format(value.startDate, 'MMM d, yyyy')}`;
+            return `From ${format(value.startDate, 'MMM d, yyyy HH:mm')}`;
         }
         if (value.endDate) {
-            return `Until ${format(value.endDate, 'MMM d, yyyy')}`;
+            return `Until ${format(value.endDate, 'MMM d, yyyy HH:mm')}`;
         }
         return 'All time';
     };
@@ -68,7 +101,7 @@ export default function DateRangePicker({ value, onChange, className }: DateRang
         <div className={clsx('relative', className)}>
             <button
                 type="button"
-                onClick={() => setIsOpen(!isOpen)}
+                onClick={handleOpen}
                 className={clsx(
                     'inline-flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-all duration-200',
                     'bg-dark-700 border border-dark-600 text-dark-200 hover:bg-dark-600 hover:text-dark-50',
@@ -77,7 +110,7 @@ export default function DateRangePicker({ value, onChange, className }: DateRang
                 )}
             >
                 <Calendar className="w-4 h-4" />
-                <span>{formatDateDisplay()}</span>
+                <span className="max-w-[200px] truncate">{formatDateDisplay()}</span>
                 {hasFilter && (
                     <X
                         className="w-4 h-4 hover:text-danger-400"
@@ -95,7 +128,7 @@ export default function DateRangePicker({ value, onChange, className }: DateRang
                         className="fixed inset-0 z-40"
                         onClick={() => setIsOpen(false)}
                     />
-                    <div className="absolute right-0 mt-2 z-50 w-72 bg-dark-800 border border-dark-600 rounded-lg shadow-xl p-4">
+                    <div className="absolute right-0 mt-2 z-50 w-80 bg-dark-800 border border-dark-600 rounded-lg shadow-xl p-4">
                         <div className="space-y-4">
                             {/* Quick presets */}
                             <div>
@@ -114,27 +147,55 @@ export default function DateRangePicker({ value, onChange, className }: DateRang
                                 </div>
                             </div>
 
-                            {/* Custom date inputs */}
+                            {/* Custom date/time inputs */}
                             <div className="border-t border-dark-600 pt-4">
-                                <p className="text-xs text-dark-400 mb-2">Custom range</p>
-                                <div className="grid grid-cols-2 gap-3">
-                                    <div>
-                                        <label className="block text-xs text-dark-500 mb-1">Start date</label>
-                                        <input
-                                            type="date"
-                                            value={value.startDate ? format(value.startDate, 'yyyy-MM-dd') : ''}
-                                            onChange={handleStartDateChange}
-                                            className="w-full px-2 py-1.5 text-sm bg-dark-700 border border-dark-600 rounded-md text-dark-200 focus:outline-none focus:ring-1 focus:ring-primary-500 focus:border-primary-500"
-                                        />
+                                <p className="text-xs text-dark-400 mb-3">Custom range</p>
+
+                                {/* Start Date & Time */}
+                                <div className="mb-3">
+                                    <label className="block text-xs text-dark-500 mb-1.5">Start date & time</label>
+                                    <div className="flex gap-2">
+                                        <div className="flex-1 relative">
+                                            <input
+                                                type="date"
+                                                value={customStartDate}
+                                                onChange={(e) => setCustomStartDate(e.target.value)}
+                                                className="w-full px-2 py-1.5 text-sm bg-dark-700 border border-dark-600 rounded-md text-dark-200 focus:outline-none focus:ring-1 focus:ring-primary-500 focus:border-primary-500"
+                                            />
+                                        </div>
+                                        <div className="w-24 relative">
+                                            <Clock className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-dark-500 pointer-events-none" />
+                                            <input
+                                                type="time"
+                                                value={customStartTime}
+                                                onChange={(e) => setCustomStartTime(e.target.value)}
+                                                className="w-full pl-7 pr-2 py-1.5 text-sm bg-dark-700 border border-dark-600 rounded-md text-dark-200 focus:outline-none focus:ring-1 focus:ring-primary-500 focus:border-primary-500"
+                                            />
+                                        </div>
                                     </div>
-                                    <div>
-                                        <label className="block text-xs text-dark-500 mb-1">End date</label>
-                                        <input
-                                            type="date"
-                                            value={value.endDate ? format(value.endDate, 'yyyy-MM-dd') : ''}
-                                            onChange={handleEndDateChange}
-                                            className="w-full px-2 py-1.5 text-sm bg-dark-700 border border-dark-600 rounded-md text-dark-200 focus:outline-none focus:ring-1 focus:ring-primary-500 focus:border-primary-500"
-                                        />
+                                </div>
+
+                                {/* End Date & Time */}
+                                <div>
+                                    <label className="block text-xs text-dark-500 mb-1.5">End date & time</label>
+                                    <div className="flex gap-2">
+                                        <div className="flex-1 relative">
+                                            <input
+                                                type="date"
+                                                value={customEndDate}
+                                                onChange={(e) => setCustomEndDate(e.target.value)}
+                                                className="w-full px-2 py-1.5 text-sm bg-dark-700 border border-dark-600 rounded-md text-dark-200 focus:outline-none focus:ring-1 focus:ring-primary-500 focus:border-primary-500"
+                                            />
+                                        </div>
+                                        <div className="w-24 relative">
+                                            <Clock className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-dark-500 pointer-events-none" />
+                                            <input
+                                                type="time"
+                                                value={customEndTime}
+                                                onChange={(e) => setCustomEndTime(e.target.value)}
+                                                className="w-full pl-7 pr-2 py-1.5 text-sm bg-dark-700 border border-dark-600 rounded-md text-dark-200 focus:outline-none focus:ring-1 focus:ring-primary-500 focus:border-primary-500"
+                                            />
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -150,7 +211,7 @@ export default function DateRangePicker({ value, onChange, className }: DateRang
                                 </button>
                                 <button
                                     type="button"
-                                    onClick={() => setIsOpen(false)}
+                                    onClick={handleApply}
                                     className="px-3 py-1.5 text-xs rounded-md bg-primary-600 text-white hover:bg-primary-700 transition-colors"
                                 >
                                     Apply

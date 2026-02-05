@@ -23,9 +23,21 @@ export class DialogflowService {
     private client: SessionsClient;
 
     constructor() {
-        this.client = new SessionsClient({
-            keyFilename: config.googleCloud.credentialsPath || undefined,
-        });
+        // Use Application Default Credentials (ADC) from Google Cloud SDK first
+        // Falls back to service account file if GOOGLE_APPLICATION_CREDENTIALS is set
+        const credentialsPath = config.googleCloud.credentialsPath;
+
+        if (credentialsPath && credentialsPath.trim() !== '') {
+            // Use explicit service account file
+            console.log('Using service account credentials from:', credentialsPath);
+            this.client = new SessionsClient({
+                keyFilename: credentialsPath,
+            });
+        } else {
+            // Use Application Default Credentials (gcloud auth application-default login)
+            console.log('Using Application Default Credentials (Google Cloud SDK)');
+            this.client = new SessionsClient();
+        }
     }
 
     async detectIntent(params: DetectIntentParams): Promise<DetectIntentResult> {

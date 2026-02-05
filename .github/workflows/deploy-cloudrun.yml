@@ -7,8 +7,8 @@ on:
   workflow_dispatch:
 
 env:
-  # Using gen-ai-guru-gdg-pune project (existing service account key available)
-  PROJECT_ID: gen-ai-guru-gdg-pune
+  # Using ccai-job-website project (matches service account key)
+  PROJECT_ID: ccai-job-website
   REGION: us-central1
   BACKEND_SERVICE: testsuite-backend
   FRONTEND_SERVICE: testsuite-frontend

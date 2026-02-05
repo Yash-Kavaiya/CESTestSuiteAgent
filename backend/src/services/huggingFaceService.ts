@@ -171,32 +171,34 @@ class HuggingFaceService {
      */
     private parseRows(rows: HuggingFaceRow[], textColumn: string, datasetId: string): DatasetSample[] {
         const preset = this.PRESET_DATASETS.find(d => d.id === datasetId);
-        const defaultCategory = preset?.category || 'prompt_injection';
+        const defaultCategory: string = preset?.category || 'prompt_injection';
 
-        return rows
-            .map(row => {
-                const text = row.row[textColumn];
-                if (typeof text !== 'string' || !text.trim()) {
-                    return null;
-                }
+        const results: DatasetSample[] = [];
 
-                // Try to extract category from row if available
-                let category = defaultCategory;
-                if (row.row['category'] && typeof row.row['category'] === 'string') {
-                    category = row.row['category'];
-                } else if (row.row['label'] && typeof row.row['label'] === 'string') {
-                    category = row.row['label'];
-                } else if (row.row['type'] && typeof row.row['type'] === 'string') {
-                    category = row.row['type'];
-                }
+        for (const row of rows) {
+            const text = row.row[textColumn];
+            if (typeof text !== 'string' || !text.trim()) {
+                continue;
+            }
 
-                return {
-                    text: text.trim(),
-                    category,
-                    metadata: row.row
-                };
-            })
-            .filter((sample): sample is DatasetSample => sample !== null);
+            // Try to extract category from row if available
+            let category: string = defaultCategory;
+            if (row.row['category'] && typeof row.row['category'] === 'string') {
+                category = row.row['category'];
+            } else if (row.row['label'] && typeof row.row['label'] === 'string') {
+                category = row.row['label'];
+            } else if (row.row['type'] && typeof row.row['type'] === 'string') {
+                category = row.row['type'];
+            }
+
+            results.push({
+                text: text.trim(),
+                category,
+                metadata: row.row
+            });
+        }
+
+        return results;
     }
 
     /**

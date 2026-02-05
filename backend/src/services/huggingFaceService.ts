@@ -14,6 +14,11 @@ export interface DatasetSample {
     metadata?: Record<string, unknown>;
 }
 
+interface HuggingFaceFeature {
+    name: string;
+    type: string | { dtype?: string };
+}
+
 interface HuggingFaceRow {
     row: Record<string, unknown>;
 }
@@ -137,15 +142,18 @@ class HuggingFaceService {
                 const features = response.data.features;
 
                 for (const colName of textColumnNames) {
-                    if (features.some((f: { name: string }) => f.name.toLowerCase() === colName)) {
+                    if (features.some((f: HuggingFaceFeature) => f.name.toLowerCase() === colName)) {
                         return colName;
                     }
                 }
 
                 // If no common name found, use the first string column
-                const stringFeature = features.find((f: { type: { dtype?: string } }) =>
-                    f.type?.dtype === 'string' || f.type === 'string'
-                );
+                const stringFeature = features.find((f: HuggingFaceFeature) => {
+                    if (typeof f.type === 'string') {
+                        return f.type === 'string';
+                    }
+                    return f.type?.dtype === 'string';
+                });
                 if (stringFeature) {
                     return stringFeature.name;
                 }

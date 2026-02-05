@@ -22,6 +22,20 @@
 
 ## ✨ Features
 
+### 🛡️ Responsible AI Testing
+- Automated vulnerability scanning
+- Prompt injection & jailbreak detection
+- Safety scoring and analysis
+- Custom prompt dataset support
+- Comprehensive vulnerability reports
+
+### 🧠 AI Analysis
+- Automated conversation insights
+- Customer satisfaction scoring
+- First Contact Resolution (FCR) tracking
+- Escalation rate monitoring
+- Bulk analysis capabilities
+
 ### 🎯 Single Conversation Testing
 - Real-time conversation simulation
 - Intent detection & confidence scores

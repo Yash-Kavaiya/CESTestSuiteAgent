@@ -11,7 +11,7 @@ const LOG_LEVELS: Record<LogLevel, number> = {
     error: 3,
 };
 
-const currentLevel: LogLevel = ((import.meta as any).env.VITE_LOG_LEVEL as LogLevel) || 'info';
+const currentLevel: LogLevel = (import.meta.env.VITE_LOG_LEVEL as LogLevel) || 'info';
 
 function shouldLog(level: LogLevel): boolean {
     return LOG_LEVELS[level] >= LOG_LEVELS[currentLevel];

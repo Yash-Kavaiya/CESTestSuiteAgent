@@ -1,10 +1,14 @@
 # Build stage
-FROM node:20-alpine AS builder
+FROM node:20-slim AS builder
 
 WORKDIR /app
 
 # Install build dependencies for native modules (better-sqlite3)
-RUN apk add --no-cache python3 make g++ gcc
+RUN apt-get update && apt-get install -y \
+    python3 \
+    make \
+    g++ \
+    && rm -rf /var/lib/apt/lists/*
 
 # Copy package files
 COPY package*.json ./
@@ -19,19 +23,20 @@ COPY . .
 RUN npm run build
 
 # Production stage
-FROM node:20-alpine AS production
+FROM node:20-slim AS production
 
 WORKDIR /app
 
 # Install runtime dependencies for native modules
-RUN apk add --no-cache python3 make g++ gcc
+RUN apt-get update && apt-get install -y \
+    python3 \
+    make \
+    g++ \
+    && rm -rf /var/lib/apt/lists/*
 
 # Copy package files and install production dependencies
 COPY package*.json ./
 RUN npm ci --only=production
-
-# Remove build dependencies to reduce image size
-RUN apk del python3 make g++ gcc
 
 # Copy built files from builder
 COPY --from=builder /app/dist ./dist

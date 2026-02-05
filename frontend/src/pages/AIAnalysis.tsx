@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import {
     Play,
     Download,
@@ -16,6 +16,7 @@ import ProgressBar from '../components/ui/ProgressBar';
 import AnalysisResult from '../components/ui/AnalysisResult';
 import { aiAnalysisApi, ConversationSession, ConversationAnalysis, AnalysisSummary } from '../api/aiAnalysis';
 import { useAgentStore } from '../store/useAgentStore';
+import { getCache, setCache, CACHE_KEYS } from '../utils/cache';
 import clsx from 'clsx';
 
 interface SessionWithAnalysis extends ConversationSession {
@@ -27,6 +28,7 @@ const AIAnalysis = () => {
     const { selectedAgent } = useAgentStore();
     const [sessions, setSessions] = useState<SessionWithAnalysis[]>([]);
     const [loading, setLoading] = useState(true);
+    const [isRefreshing, setIsRefreshing] = useState(false);
     const [analyzing, setAnalyzing] = useState<string | null>(null);
     const [bulkAnalyzing, setBulkAnalyzing] = useState(false);
     const [selectedSessions, setSelectedSessions] = useState<Set<string>>(new Set());
@@ -39,6 +41,24 @@ const AIAnalysis = () => {
     const projectId = selectedAgent?.projectId;
     const location = selectedAgent?.location;
 
+    // Load cached data immediately when agent changes
+    useEffect(() => {
+        if (agentId) {
+            const cachedSessions = getCache<SessionWithAnalysis[]>(CACHE_KEYS.AI_ANALYSIS_SESSIONS, agentId);
+            const cachedSummary = getCache<AnalysisSummary>(CACHE_KEYS.AI_ANALYSIS_SUMMARY, agentId);
+
+            if (cachedSessions) {
+                setSessions(cachedSessions);
+            }
+            if (cachedSummary) {
+                setSummary(cachedSummary);
+            }
+        } else {
+            setSessions([]);
+            setSummary(null);
+        }
+    }, [agentId]);
+
     useEffect(() => {
         if (agentId) {
             loadSessions();
@@ -46,12 +66,19 @@ const AIAnalysis = () => {
         }
     }, [agentId, projectId, location]);
 
-    const loadSessions = async () => {
+    const loadSessions = useCallback(async () => {
         if (!agentId || !projectId || !location) return;
 
-        try {
+        // If we have cached data, show refreshing indicator instead of full loading
+        const hasCachedData = sessions.length > 0;
+        if (hasCachedData) {
+            setIsRefreshing(true);
+        } else {
             setLoading(true);
-            setError(null);
+        }
+        setError(null);
+
+        try {
             const response = await aiAnalysisApi.getSessions(projectId, location, agentId, 100);
 
             // Load analysis results for sessions that have them
@@ -74,24 +101,29 @@ const AIAnalysis = () => {
             );
 
             setSessions(sessionsWithAnalysis);
+            // Cache the fresh data
+            setCache(CACHE_KEYS.AI_ANALYSIS_SESSIONS, agentId, sessionsWithAnalysis);
         } catch (error: any) {
             setError(error.message || 'Failed to load sessions');
             console.error('Load sessions error:', error);
         } finally {
             setLoading(false);
+            setIsRefreshing(false);
         }
-    };
+    }, [agentId, projectId, location, sessions.length]);
 
-    const loadSummary = async () => {
+    const loadSummary = useCallback(async () => {
         if (!agentId) return;
 
         try {
             const summaryData = await aiAnalysisApi.getSummary(agentId);
             setSummary(summaryData);
+            // Cache the summary data
+            setCache(CACHE_KEYS.AI_ANALYSIS_SUMMARY, agentId, summaryData);
         } catch (error) {
             console.error('Failed to load summary:', error);
         }
-    };
+    }, [agentId]);
 
     const handleAnalyzeSession = async (sessionId: string) => {
         if (!agentId || !projectId || !location) return;
@@ -108,13 +140,16 @@ const AIAnalysis = () => {
             );
 
             // Update local state
-            setSessions((prev) =>
-                prev.map((session) =>
+            setSessions((prev) => {
+                const updatedSessions = prev.map((session) =>
                     session.sessionId === sessionId
                         ? { ...session, analysis, hasAnalysis: true, analyzing: false }
                         : session
-                )
-            );
+                );
+                // Update cache with new analysis
+                setCache(CACHE_KEYS.AI_ANALYSIS_SESSIONS, agentId, updatedSessions);
+                return updatedSessions;
+            });
 
             setSuccessMessage(`Analysis completed for session ${sessionId}`);
             setTimeout(() => setSuccessMessage(null), 3000);
@@ -146,14 +181,17 @@ const AIAnalysis = () => {
             );
 
             // Update sessions with new analyses
-            setSessions((prev) =>
-                prev.map((session) => {
+            setSessions((prev) => {
+                const updatedSessions = prev.map((session) => {
                     const newAnalysis = result.analyses.find((a) => a.sessionId === session.sessionId);
                     return newAnalysis
                         ? { ...session, analysis: newAnalysis, hasAnalysis: true }
                         : session;
-                })
-            );
+                });
+                // Update cache with new analyses
+                setCache(CACHE_KEYS.AI_ANALYSIS_SESSIONS, agentId, updatedSessions);
+                return updatedSessions;
+            });
 
             setSuccessMessage(`Bulk analysis completed: ${result.totalAnalyzed} sessions analyzed`);
             setTimeout(() => setSuccessMessage(null), 3000);
@@ -234,7 +272,12 @@ const AIAnalysis = () => {
         <div className="space-y-6">
             {/* Header */}
             <div>
-                <h1 className="text-3xl font-bold text-gray-900">AI Analysis</h1>
+                <h1 className="text-3xl font-bold text-gray-900">
+                    AI Analysis
+                    {isRefreshing && (
+                        <Loader className="w-5 h-5 inline ml-2 animate-spin text-blue-500" />
+                    )}
+                </h1>
                 <p className="text-gray-600 mt-1">
                     Analyze conversation transcripts using AI to extract insights
                 </p>
@@ -342,10 +385,10 @@ const AIAnalysis = () => {
 
                         <Button
                             onClick={loadSessions}
-                            disabled={loading}
+                            disabled={loading || isRefreshing}
                             className="flex items-center gap-2 bg-gray-600 hover:bg-gray-700"
                         >
-                            <RefreshCw className={clsx('w-4 h-4', loading && 'animate-spin')} />
+                            <RefreshCw className={clsx('w-4 h-4', (loading || isRefreshing) && 'animate-spin')} />
                             Refresh
                         </Button>
                     </div>
@@ -371,14 +414,14 @@ const AIAnalysis = () => {
             </Card>
 
             {/* Sessions List */}
-            {loading ? (
+            {loading && sessions.length === 0 ? (
                 <Card>
                     <CardContent className="py-8 text-center">
                         <Loader className="w-8 h-8 animate-spin text-blue-600 mx-auto" />
                         <p className="text-gray-600 mt-2">Loading conversations...</p>
                     </CardContent>
                 </Card>
-            ) : sessions.length === 0 ? (
+            ) : !loading && sessions.length === 0 ? (
                 <Card>
                     <CardContent className="py-8 text-center">
                         <AlertCircle className="w-8 h-8 text-gray-400 mx-auto mb-2" />

@@ -107,4 +107,9 @@ export function clearAgentCache(agentId: string): void {
 export const CACHE_KEYS = {
     DASHBOARD_METRICS: 'dashboard_metrics',
     COVERAGE_DATA: 'coverage_data',
+    AI_ANALYSIS_SESSIONS: 'ai_analysis_sessions',
+    AI_ANALYSIS_SUMMARY: 'ai_analysis_summary',
+    RAI_DATASETS: 'rai_datasets',
+    RAI_TEST_HISTORY: 'rai_test_history',
+    RAI_TEST_RESULTS: 'rai_test_results',
 } as const;

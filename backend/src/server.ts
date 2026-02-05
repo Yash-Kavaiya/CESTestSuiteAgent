@@ -12,6 +12,7 @@ import agentUrlTestRoutes from './routes/agentUrlTest.js';
 import conversationHistoryRoutes from './routes/conversationHistory.js';
 import coverageRoutes from './routes/coverage.js';
 import aiAnalysisRoutes from './routes/aiAnalysis.js';
+import responsibleAIRoutes from './routes/responsibleAI.js';
 import { db, initDatabase } from './database.js';
 import simulationRoutes from './routes/simulation.js';
 import { createErrorResponse, ErrorCode, sanitizeErrorMessage } from './utils/errors.js';
@@ -36,6 +37,20 @@ app.use(cors({
     origin: config.frontendUrl,
     credentials: true,
 }));
+
+// Security headers middleware
+app.use((_req, res, next) => {
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('X-Frame-Options', 'DENY');
+    res.setHeader('X-XSS-Protection', '1; mode=block');
+    res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+    // Enable HSTS in production
+    if (config.nodeEnv === 'production') {
+        res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+    }
+    next();
+});
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
@@ -56,6 +71,7 @@ app.use('/api/v1/settings', settingsRoutes);
 app.use('/api/v1/conversations', conversationHistoryRoutes);
 app.use('/api/v1/coverage', coverageRoutes);
 app.use('/api/v1/ai-analysis', aiAnalysisRoutes);
+app.use('/api/v1/responsible-ai', responsibleAIRoutes);
 
 // Analytics routes - using real database queries
 app.get('/api/v1/analytics/dashboard', (req, res) => {

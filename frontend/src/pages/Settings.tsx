@@ -342,6 +342,8 @@ export default function Settings() {
                                         </optgroup>
                                         <optgroup label="Multi-region">
                                             <option value="global">global</option>
+                                            <option value="us">us (United States)</option>
+                                            <option value="eu">eu (European Union)</option>
                                         </optgroup>
                                     </select>
                                 </div>
